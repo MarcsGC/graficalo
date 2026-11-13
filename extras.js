@@ -114,6 +114,7 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) hidde
 
 /* ---------- novedades ---------- */
 const WHATS_NEW = {
+  "0.8": ["Gráficos más limpios: líneas suaves sin picos falsos, rejilla más ligera y fechas del eje por días, semanas o meses.", "Las fechas se ven a su distancia real, y los días sin datos se marcan con una franja y una línea discontinua."],
   "0.7": ["Gráficalo tiene nueva dirección: marcsgc.github.io/graficalo/. Tus proyectos y ajustes siguen aquí.", "Arreglos de diseño en móviles pequeños, en el panel y en modo oscuro."],
   "0.6": ["Tus proyectos en tarjetas al abrir la app, con su último valor y un minigráfico.", "Unidades en las columnas (€, kg, %…) que se ven en la tabla, los gráficos y las estadísticas.", "Un resumen en una frase encima de las estadísticas.", "Botones de un toque en el registro rápido para respuestas como Sí / No.", "Modo sencillo: las estadísticas avanzadas se activan en Ajustes."],
   "0.5": ["Sincroniza tus proyectos entre el móvil y el ordenador con Google Drive (Menú → Sincronizar con Google Drive).", "Nueva pantalla de inicio para elegir con qué plantilla empezar, con las plantillas agrupadas.", "Al borrar todos los proyectos ya no vuelven a aparecer los ejemplos."],

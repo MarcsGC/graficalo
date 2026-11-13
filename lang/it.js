@@ -890,4 +890,8 @@ I18N.it = {
 /* 0.7 */
 "Gráficalo tiene nueva dirección: marcsgc.github.io/graficalo/. Tus proyectos y ajustes siguen aquí.": "Gráficalo ha un nuovo indirizzo: marcsgc.github.io/graficalo/. I tuoi progetti e le impostazioni sono ancora qui.",
 "Arreglos de diseño en móviles pequeños, en el panel y en modo oscuro.": "Correzioni grafiche sui telefoni piccoli, nel pannello e in modalità scura.",
+"1 día sin datos": "1 giorno senza dati",
+"{n} días sin datos": "{n} giorni senza dati",
+"Gráficos más limpios: líneas suaves sin picos falsos, rejilla más ligera y fechas del eje por días, semanas o meses.": "Grafici più puliti: linee morbide senza falsi picchi, griglia più leggera e asse delle date per giorni, settimane o mesi.",
+"Las fechas se ven a su distancia real, y los días sin datos se marcan con una franja y una línea discontinua.": "Le date sono mostrate alla loro distanza reale e i giorni senza dati sono segnati con una fascia e una linea tratteggiata.",
 };

@@ -1,5 +1,19 @@
 # Registro de cambios de Gráficalo
 
+## 0.8 · 13 de noviembre de 2026
+
+### Cambiado
+- Gráficos más limpios: rejilla solo horizontal, sin bordes, leyenda con puntos, tooltip oscuro con la fecha completa y una línea vertical que sigue al dedo.
+- Las líneas usan interpolación monótona: ya no se inventan picos ni valles entre dos registros.
+- Puntos huecos más finos; con más de 45 registros se ocultan y solo aparecen al tocar.
+- Gráfico de líneas con una sola serie: degradado suave debajo.
+- Eje de fechas con marcas de calendario (días, lunes, meses o años) y etiquetas cortas: «19 oct», «26», «2 nov»… Arreglado el desfase de un día tras el cambio de hora.
+- Los números de los ejes usan el formato del idioma.
+
+### Añadido
+- Las barras con fechas también se colocan a su distancia real.
+- Los huecos sin registros (mucho más largos de lo habitual) se marcan con una franja gris, «N días sin datos», y el tramo de línea pasa a discontinuo.
+
 ## 0.7 · 21 de octubre de 2026
 
 ### Cambiado

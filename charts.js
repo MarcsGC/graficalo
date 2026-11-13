@@ -138,7 +138,73 @@ const annotPlugin = {
   }
 };
 const bgFill = { id: "bgfill", beforeDraw(chart, _a, o) { if (!o || !o.color) return; const c = chart.ctx; c.save(); c.fillStyle = o.color; c.fillRect(0, 0, chart.width, chart.height); c.restore(); } };
-Chart.register(valueLabels, boxPlugin, annotPlugin, bgFill);
+// franjas de días sin datos en los gráficos de evolución
+const gapBands = {
+  id: "gapbands",
+  beforeDatasetsDraw(chart, _a, o) {
+    if (!o || !o.ranges || !o.ranges.length) return;
+    const { ctx, chartArea: A, scales: { x } } = chart; if (!x) return;
+    ctx.save(); ctx.beginPath(); ctx.rect(A.left, A.top, A.right - A.left, A.bottom - A.top); ctx.clip();
+    o.ranges.forEach(([a, b, n]) => {
+      const x0 = Math.max(A.left, x.getPixelForValue(a)), x1 = Math.min(A.right, x.getPixelForValue(b)); if (x1 - x0 < 2) return;
+      ctx.fillStyle = o.fill; ctx.fillRect(x0, A.top, x1 - x0, A.bottom - A.top);
+      ctx.strokeStyle = o.edge; ctx.lineWidth = 1; ctx.setLineDash([2, 3]); ctx.beginPath();
+      ctx.moveTo(Math.round(x0) + 0.5, A.top); ctx.lineTo(Math.round(x0) + 0.5, A.bottom); ctx.moveTo(Math.round(x1) - 0.5, A.top); ctx.lineTo(Math.round(x1) - 0.5, A.bottom); ctx.stroke(); ctx.setLineDash([]);
+      const txt = n === 1 ? t("1 día sin datos") : t("{n} días sin datos", { n }); ctx.font = `500 ${o.fs}px ${o.font}`;
+      const short = n === 1 ? "1 d" : n + " d", tw = ctx.measureText(txt).width, label = tw + 10 < x1 - x0 ? txt : ctx.measureText(short).width + 6 < x1 - x0 ? short : "";
+      if (label) { ctx.fillStyle = o.ink; ctx.textAlign = "center"; ctx.textBaseline = "bottom"; ctx.fillText(label, (x0 + x1) / 2, A.bottom - 6); }
+    });
+    ctx.restore();
+  }
+};
+// línea vertical que sigue al dedo o al ratón
+const crosshair = {
+  id: "crosshair",
+  afterDatasetsDraw(chart, _a, o) {
+    if (!o || !o.on) return;
+    const act = chart.tooltip?.getActiveElements?.() || []; if (!act.length) return;
+    const { ctx, chartArea: A } = chart, x = act[0].element.x; if (x < A.left || x > A.right) return;
+    ctx.save(); ctx.strokeStyle = o.color; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(Math.round(x) + 0.5, A.top); ctx.lineTo(Math.round(x) + 0.5, A.bottom); ctx.stroke(); ctx.restore();
+  }
+};
+Chart.register(valueLabels, boxPlugin, annotPlugin, bgFill, gapBands, crosshair);
+
+/* ---------- eje de fechas con marcas de calendario ---------- */
+const DAY = 864e5;
+const midnight = v => { const d = new Date(v); d.setHours(0, 0, 0, 0); return d; };
+function calendarTicks(min, max, maxTicks) {
+  const days = (max - min) / DAY, out = [];
+  const steps = [[1, "d"], [2, "d"], [1, "w"], [2, "w"], [1, "m"], [3, "m"], [6, "m"], [1, "y"], [2, "y"], [5, "y"]];
+  const span = { d: 1, w: 7, m: 30.4, y: 365.25 };
+  const [n, u] = steps.find(([k, uu]) => days / (k * span[uu]) <= maxTicks) || steps[steps.length - 1];
+  let d = midnight(min + DAY - 1);
+  if (u === "w") { while (d.getDay() !== 1) d.setDate(d.getDate() + 1); }
+  else if (u === "m") { d = new Date(d.getFullYear(), d.getMonth(), 1); while (d.getMonth() % n) d.setMonth(d.getMonth() + 1); }
+  else if (u === "y") { d = new Date(d.getFullYear(), 0, 1); while (d.getFullYear() % n) d.setFullYear(d.getFullYear() + 1); }
+  for (let k = 0; k < 400; k++) {
+    if (d.getTime() >= min - 1 && d.getTime() <= max + 1) out.push({ value: d.getTime() });
+    if (d.getTime() > max) break;
+    if (u === "d") d.setDate(d.getDate() + n); else if (u === "w") d.setDate(d.getDate() + 7 * n); else if (u === "m") d.setMonth(d.getMonth() + n); else d.setFullYear(d.getFullYear() + n);
+  }
+  out.unit = u; return out;
+}
+// "3 nov", luego solo "10", "17"… hasta que cambia el mes
+function calendarLabel(v, i, ticks, unit) {
+  const d = new Date(v), prev = i > 0 ? new Date(ticks[i - 1].value) : null, loc = LOC();
+  if (unit === "y") return String(d.getFullYear());
+  if (unit === "m") { const yr = !prev || prev.getFullYear() !== d.getFullYear(); return d.toLocaleDateString(loc, yr ? { month: "short", year: "2-digit" } : { month: "short" }).replace(".", ""); }
+  const newMonth = !prev || prev.getMonth() !== d.getMonth(), newYear = prev && prev.getFullYear() !== d.getFullYear();
+  if (!newMonth) return String(d.getDate());
+  return d.toLocaleDateString(loc, newYear || (!prev && data.multiYear) ? { day: "numeric", month: "short", year: "2-digit" } : { day: "numeric", month: "short" });
+}
+// huecos: tramos entre registros mucho más largos de lo habitual
+function findGaps(xs) {
+  const s = [...new Set(xs.filter(Number.isFinite))].sort((a, b) => a - b); if (s.length < 4) return { thr: Infinity, ranges: [] };
+  const diffs = s.slice(1).map((v, i) => v - s[i]).sort((a, b) => a - b), med = diffs[Math.floor(diffs.length / 2)];
+  const thr = Math.max(med * 2.5, med + 2 * DAY) + 36e5, ranges = [];
+  for (let i = 1; i < s.length; i++) if (s[i] - s[i - 1] > thr) ranges.push([s[i - 1], s[i], Math.round((s[i] - s[i - 1]) / DAY) - 1]);
+  return { thr, ranges, med };
+}
 
 /* ---------- construcción de la configuración ---------- */
 function noteIndex(label) {
@@ -148,8 +214,36 @@ function noteIndex(label) {
 // añade la unidad de cada serie a ejes, etiquetas y tooltips
 function buildConfig(ch, mode = "main") {
   const cfg = buildConfig0(ch, mode);
-  if (cfg && !cfg.empty) try { addUnits(cfg); } catch {}
+  if (cfg && !cfg.empty) { try { addUnits(cfg); } catch {} try { polish(cfg, ch, mode); } catch {} }
   return cfg;
+}
+// estilo común: rejilla solo en el eje de valores, sin bordes, tooltip limpio
+function polish(cfg, ch, mode) {
+  const o = cfg.options, ink = css("--ink"), sheet = css("--sheet"), grid = css("--grid"), muted = css("--muted");
+  o.layout = { padding: { top: 4, right: 8 } }; o.locale = LOC();
+  Object.assign(o.plugins.tooltip, {
+    backgroundColor: alpha(ink, 0.92), titleColor: sheet, bodyColor: sheet, footerColor: sheet, padding: 10, cornerRadius: 8, caretSize: 6,
+    usePointStyle: true, boxPadding: 4, titleFont: { weight: "600" }
+  });
+  o.plugins.tooltip.callbacks.labelColor = x => {
+    const ds = x.dataset, bg = Array.isArray(ds.backgroundColor) ? ds.backgroundColor[x.dataIndex] : ds.backgroundColor;
+    const line = (ds.type || x.chart.config.type) === "line" || (ds.type || x.chart.config.type) === "radar" || typeof bg !== "string";
+    const col = line ? (Array.isArray(ds.borderColor) ? ds.borderColor[x.dataIndex] : ds.borderColor) : bg;
+    return typeof col === "string" ? { borderColor: col, backgroundColor: col } : { borderColor: ink, backgroundColor: ink };
+  };
+  const lg = o.plugins.legend; if (lg && lg.labels) Object.assign(lg.labels, { usePointStyle: true, pointStyle: "circle", boxWidth: 8, boxHeight: 8, padding: 14 });
+  const sc = o.scales; if (!sc || sc.r) return;
+  const horiz = o.indexAxis === "y", scatter = cfg.type === "scatter";
+  Object.entries(sc).forEach(([id, ax]) => {
+    const isValue = scatter || (horiz ? id === "x" : id !== "x");
+    ax.border = { display: !isValue || scatter ? id === (horiz ? "y" : "x") : false, color: grid };
+    ax.grid = Object.assign(ax.grid || {}, isValue ? { color: grid, drawTicks: false } : { display: false });
+    if (id === "y1") ax.grid.drawOnChartArea = false;
+    ax.ticks = Object.assign(ax.ticks || {}, { padding: isValue ? 8 : 6 });
+    if (isValue && ax.type !== "category") ax.ticks.maxTicksLimit = ax.ticks.maxTicksLimit || (mode === "panel" ? 5 : 6);
+  });
+  const lineLike = cfg.type === "line" || (cfg.data.datasets || []).some(x => x.type === "line" && !x._noLabels);
+  if (lineLike && !scatter) { o.interaction = o.interaction || { mode: "index", intersect: false }; o.plugins.crosshair = { on: mode !== "export", color: alpha(muted, 0.45) }; }
 }
 function addUnits(cfg) {
   const dss = cfg.data?.datasets || [], o = cfg.options; if (!o || !dss.some(x => x._u)) return;
@@ -196,47 +290,67 @@ function buildConfig0(ch, mode = "main") {
     base.plugins.annot = { on: !!((ch.lines || []).length || ch.markMax || ch.markMin || notes.length), lines: ch.lines || [], markMax: ch.markMax, markMin: ch.markMin, notes, horizontal, fs: Math.max(9, fs - 1), font: css("--body"), ink, sheet: css("--sheet"), danger: css("--amber") };
   };
   const labels = d.labels, sel = ch.series.map(colById).filter(c => c && isNum(c));
-  const useTime = (ch.type === "line" || ch.type === "area") && d.ts && d.ts.length > 1 && d.ts.every(Number.isFinite);
+  const useTime = ["line", "area", "bar"].includes(ch.type) && d.ts && d.ts.length > 1 && d.ts.every(Number.isFinite);
   let xMaxExtra = -Infinity;
+  const gaps = useTime ? findGaps(d.ts) : { thr: Infinity, ranges: [] };
   const timeAxis = () => {
-    const xs = d.ts, mn = Math.min(...xs), mx = Math.max(Math.max(...xs), xMaxExtra), day = 864e5;
+    const xs = d.ts, mn0 = Math.min(...xs), mx0 = Math.max(Math.max(...xs), xMaxExtra), pad = Math.max(DAY / 2, (mx0 - mn0) * 0.025);
+    const mn = mn0 - pad, mx = mx0 + pad; let unit = "d";
     Object.assign(base.scales.x, {
-      type: "linear", min: mn, max: mx, ticks: { color: muted, maxRotation: 0, callback: v => fmtDate(isoOf(new Date(v)), data.multiYear) },
-      afterBuildTicks: sc => { const days = Math.round((mx - mn) / day), step = Math.max(1, Math.ceil(days / 7)); const out = []; for (let v = mn; v <= mx + 1; v += step * day) out.push({ value: v }); sc.ticks = out; }
+      type: "linear", min: mn, max: mx,
+      ticks: { color: muted, maxRotation: 0, autoSkip: false, padding: 6, callback: (v, i, ticks) => calendarLabel(v, i, ticks, unit) },
+      afterBuildTicks: sc => { const tk = calendarTicks(mn, mx, Math.max(3, Math.floor((sc.width || 300) / 64))); unit = tk.unit; sc.ticks = tk; }
     });
     base.plugins.tooltip.callbacks.title = items => items.length ? fmtDate(isoOf(new Date(items[0].parsed.x)), true) : "";
+    base.interaction = { mode: "nearest", axis: "x", intersect: false };
+    base.plugins.gapbands = { ranges: ch.type === "bar" ? gaps.ranges.map(([a, b, n]) => [a + gaps.med * 0.5, b - gaps.med * 0.5, n]) : gaps.ranges, fill: alpha(toHex(grid), 0.45), edge: alpha(toHex(muted), 0.35), ink: muted, fs: Math.max(9, fs - 2), font: css("--body") };
+  };
+  // tramo sin datos: línea discontinua y más suave
+  const gapSeg = col => ({
+    borderDash: c => (c.p1.parsed.x - c.p0.parsed.x > gaps.thr ? [5, 5] : undefined),
+    borderColor: c => (c.p1.parsed.x - c.p0.parsed.x > gaps.thr ? alpha(col, 0.55) : undefined)
+  });
+  const softFill = col => c => {
+    const A = c.chart.chartArea; if (!A) return alpha(col, 0.08);
+    const g = c.chart.ctx.createLinearGradient(0, A.top, 0, A.bottom); g.addColorStop(0, alpha(col, 0.2)); g.addColorStop(1, alpha(col, 0)); return g;
   };
   const pt = (vals) => (useTime ? vals.map((v, k) => ({ x: d.ts[k], y: v })) : vals);
   const meanDs = (c, color, yAxisID) => {
     const m = S.mean(d.vals(c.id)); if (!Number.isFinite(m)) return null;
-    return { type: "line", _u: unitOf(c), label: t("Media {s}", { s: colName(c) }), data: useTime ? [{ x: Math.min(...d.ts), y: m }, { x: Math.max(...d.ts), y: m }] : labels.map(() => m), borderColor: color, borderDash: [6, 5], borderWidth: 1.5, pointRadius: 0, fill: false, _noLabels: true, yAxisID };
+    return { type: "line", _u: unitOf(c), label: t("Media {s}", { s: colName(c) }), data: useTime ? [{ x: Math.min(...d.ts), y: m }, { x: Math.max(...d.ts), y: m }] : labels.map(() => m), borderColor: color, borderDash: [6, 5], borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 0, fill: false, _noLabels: true, yAxisID };
   };
 
   if (["bar", "barh", "stacked", "line", "area"].includes(ch.type)) {
     if (!sel.length) return need(t("Elige al menos una serie."));
     if (!sel.some(c => d.vals(c.id).length)) return need(t("Las series elegidas no tienen datos todavía."));
     const kind = ch.type === "line" || ch.type === "area" ? "line" : "bar";
+    const nPts = d.rowIdx.length, sheet = css("--sheet");
     const ds = sel.map(c => {
       const col = colColor(c);
-      return { label: colName(c), _u: unitOf(c), data: pt(d.series(c.id)), borderColor: col, borderWidth: 2,
-        backgroundColor: kind === "bar" ? col : alpha(col, ch.type === "area" ? 0.22 : 0.1),
-        fill: ch.type === "area" ? "origin" : false, tension: 0.25, pointRadius: mode === "panel" ? 2.5 : 3.5, borderRadius: ch.type === "stacked" ? 0 : 4, spanGaps: true };
+      if (kind === "bar") return { label: colName(c), _u: unitOf(c), data: pt(d.series(c.id)), borderColor: col, borderWidth: 0, backgroundColor: col, borderRadius: ch.type === "stacked" ? 0 : 5, maxBarThickness: 56 };
+      const soft = ch.type === "line" && sel.length === 1;
+      return { label: colName(c), _u: unitOf(c), data: pt(d.series(c.id)), borderColor: col, borderWidth: mode === "panel" ? 2 : 2.5,
+        backgroundColor: ch.type === "area" ? alpha(col, 0.22) : soft ? softFill(col) : alpha(col, 0.1),
+        fill: ch.type === "area" ? "origin" : soft ? "start" : false, cubicInterpolationMode: "monotone", borderCapStyle: "round", borderJoinStyle: "round",
+        pointRadius: nPts > 45 ? 0 : mode === "panel" ? 2 : 3, pointHoverRadius: 6, pointHitRadius: 12, pointBorderWidth: 2,
+        pointBackgroundColor: sheet, pointBorderColor: col, pointHoverBackgroundColor: col, pointHoverBorderColor: sheet,
+        spanGaps: true, segment: useTime ? gapSeg(col) : undefined };
     });
     if (ch.showMean && ["bar", "line", "area"].includes(ch.type)) sel.forEach(c => { const m = meanDs(c, colColor(c)); if (m) ds.push(m); });
     if (ch.type === "barh") { base.indexAxis = "y"; base.scales.x.beginAtZero = ch.zero !== false; base.scales.x.ticks.font = { family: css("--mono") }; delete base.scales.y.ticks.font; base.scales.y.beginAtZero = false; }
     if (ch.type === "stacked") { base.scales.x.stacked = true; base.scales.y.stacked = true; }
-    if (useTime && (ch.ma7 || ch.trend)) {
+    if (useTime && kind === "line" && (ch.ma7 || ch.trend)) {
       const firstNum = numCols()[0];
       sel.forEach(c => {
         const sr = d.series(c.id), pts = d.ts.map((x, k) => [x, sr[k]]).filter(q => q[1] != null).sort((a, b) => a[0] - b[0]);
         const tag = sel.length > 1 ? " · " + colName(c) : "";
-        if (ch.ma7 && pts.length > 2) ds.push({ type: "line", _u: unitOf(c), label: t("Media 7 días") + tag, data: pts.map(([x]) => ({ x, y: S.mean(pts.filter(q => q[0] > x - 7 * 864e5 && q[0] <= x).map(q => q[1])) })), borderColor: alpha(colColor(c), 0.75), borderWidth: 3, pointRadius: 0, fill: false, tension: 0.35, _noLabels: true });
+        if (ch.ma7 && pts.length > 2) ds.push({ type: "line", _u: unitOf(c), label: t("Media 7 días") + tag, data: pts.map(([x]) => ({ x, y: S.mean(pts.filter(q => q[0] > x - 7 * 864e5 && q[0] <= x).map(q => q[1])) })), borderColor: alpha(colColor(c), 0.5), borderWidth: 4, pointRadius: 0, pointHoverRadius: 0, fill: false, cubicInterpolationMode: "monotone", borderCapStyle: "round", _noLabels: true });
         const tr = ch.trend ? trendInfo(c.id) : null;
         if (tr) {
           const end = Math.min(Math.max(tr.lastTs + 14 * 864e5, c === firstNum && tr.eta ? tr.eta : 0), tr.lastTs + 180 * 864e5);
           xMaxExtra = Math.max(xMaxExtra, end);
           const line = []; for (let k = 0; k <= 20; k++) { const x = tr.fromTs + ((end - tr.fromTs) * k) / 20; line.push({ x, y: tr.at(x / 864e5) }); }
-          ds.push({ type: "line", _u: unitOf(c), label: t("Tendencia") + tag, data: line, borderColor: css("--amber"), borderDash: [7, 5], borderWidth: 2, pointRadius: 0, fill: false, _noLabels: true });
+          ds.push({ type: "line", _u: unitOf(c), label: t("Tendencia") + tag, data: line, borderColor: css("--amber"), borderDash: [7, 5], borderWidth: 2, pointRadius: 0, pointHoverRadius: 0, fill: false, _noLabels: true });
         }
       });
     }
@@ -252,8 +366,8 @@ function buildConfig0(ch, mode = "main") {
     if (!lines.size && sel.length > 1) lines.add(sel[sel.length - 1].id);
     const bars = sel.filter(c => !lines.has(c.id)), lns = sel.filter(c => lines.has(c.id));
     const ds = [
-      ...lns.map(c => ({ type: "line", _u: unitOf(c), label: colName(c), data: d.series(c.id), borderColor: colColor(c), backgroundColor: colColor(c), borderWidth: 2.5, pointRadius: 4, tension: 0.25, yAxisID: bars.length ? "y1" : "y", order: 1, spanGaps: true })),
-      ...bars.map(c => ({ type: "bar", _u: unitOf(c), label: colName(c), data: d.series(c.id), backgroundColor: colColor(c), borderColor: colColor(c), borderRadius: 4, yAxisID: "y", order: 2 }))
+      ...lns.map(c => ({ type: "line", _u: unitOf(c), label: colName(c), data: d.series(c.id), borderColor: colColor(c), backgroundColor: colColor(c), borderWidth: 2.5, pointRadius: 3.5, pointHoverRadius: 6, pointBorderWidth: 2, pointBackgroundColor: css("--sheet"), cubicInterpolationMode: "monotone", borderCapStyle: "round", yAxisID: bars.length ? "y1" : "y", order: 1, spanGaps: true })),
+      ...bars.map(c => ({ type: "bar", _u: unitOf(c), label: colName(c), data: d.series(c.id), backgroundColor: colColor(c), borderColor: colColor(c), borderRadius: 5, maxBarThickness: 56, yAxisID: "y", order: 2 }))
     ];
     if (ch.showMean) bars.forEach(c => { const m = meanDs(c, colColor(c), "y"); if (m) ds.push(m); });
     if (bars.length && lns.length) {

@@ -432,4 +432,8 @@ I18N.en = {
 /* 0.7 */
 "Gráficalo tiene nueva dirección: marcsgc.github.io/graficalo/. Tus proyectos y ajustes siguen aquí.": "Gráficalo has a new address: marcsgc.github.io/graficalo/. Your projects and settings are still here.",
 "Arreglos de diseño en móviles pequeños, en el panel y en modo oscuro.": "Layout fixes on small phones, in the dashboard and in dark mode.",
+"1 día sin datos": "1 day without data",
+"{n} días sin datos": "{n} days without data",
+"Gráficos más limpios: líneas suaves sin picos falsos, rejilla más ligera y fechas del eje por días, semanas o meses.": "Cleaner charts: smooth lines without fake peaks, a lighter grid and date axes by day, week or month.",
+"Las fechas se ven a su distancia real, y los días sin datos se marcan con una franja y una línea discontinua.": "Dates are shown at their real distance, and days without data are marked with a band and a dashed line.",
 };
