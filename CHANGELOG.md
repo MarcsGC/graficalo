@@ -1,5 +1,10 @@
 # Registro de cambios de Gráficalo
 
+## 0.8.1 · 13 de noviembre de 2026
+
+### Arreglado
+- Sincronización con Google Drive: si el mismo proyecto se editaba en dos dispositivos antes de sincronizar, aparecía duplicado como «(otro dispositivo)». Ahora cada dispositivo recuerda cómo quedó cada proyecto en su última sincronización (`graficalo.syncbase`) y se hace una fusión a tres bandas: se juntan las filas nuevas de los dos lados, se respetan las borradas y editadas, y solo se guarda una copia si la misma fila se cambió de forma distinta en los dos sitios.
+
 ## 0.8 · 13 de noviembre de 2026
 
 ### Cambiado

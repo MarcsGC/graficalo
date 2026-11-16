@@ -894,4 +894,5 @@ I18N.pt = {
 "{n} días sin datos": "{n} dias sem dados",
 "Gráficos más limpios: líneas suaves sin picos falsos, rejilla más ligera y fechas del eje por días, semanas o meses.": "Gráficos mais limpos: linhas suaves sem picos falsos, grade mais leve e eixo de datas por dias, semanas ou meses.",
 "Las fechas se ven a su distancia real, y los días sin datos se marcan con una franja y una línea discontinua.": "As datas aparecem na distância real, e os dias sem dados são marcados com uma faixa e uma linha tracejada.",
+"Si editas el mismo proyecto en el móvil y en el ordenador, los cambios se juntan en vez de crear una copia.": "Se você editar o mesmo projeto no celular e no computador, as alterações são combinadas em vez de criar uma cópia.",
 };

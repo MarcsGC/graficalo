@@ -894,4 +894,5 @@ I18N.ca = {
 "{n} días sin datos": "{n} dies sense dades",
 "Gráficos más limpios: líneas suaves sin picos falsos, rejilla más ligera y fechas del eje por días, semanas o meses.": "Gràfics més nets: línies suaus sense pics falsos, quadrícula més lleugera i dates de l’eix per dies, setmanes o mesos.",
 "Las fechas se ven a su distancia real, y los días sin datos se marcan con una franja y una línea discontinua.": "Les dates es veuen a la seva distància real, i els dies sense dades es marquen amb una franja i una línia discontínua.",
+"Si editas el mismo proyecto en el móvil y en el ordenador, los cambios se juntan en vez de crear una copia.": "Si edites el mateix projecte al mòbil i a l’ordinador, els canvis s’ajunten en lloc de crear una còpia.",
 };

@@ -436,4 +436,5 @@ I18N.en = {
 "{n} días sin datos": "{n} days without data",
 "Gráficos más limpios: líneas suaves sin picos falsos, rejilla más ligera y fechas del eje por días, semanas o meses.": "Cleaner charts: smooth lines without fake peaks, a lighter grid and date axes by day, week or month.",
 "Las fechas se ven a su distancia real, y los días sin datos se marcan con una franja y una línea discontinua.": "Dates are shown at their real distance, and days without data are marked with a band and a dashed line.",
+"Si editas el mismo proyecto en el móvil y en el ordenador, los cambios se juntan en vez de crear una copia.": "If you edit the same project on your phone and your computer, the changes are combined instead of creating a copy.",
 };

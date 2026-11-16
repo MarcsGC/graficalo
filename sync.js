@@ -70,9 +70,58 @@ async function gdEmail() { try { return (await (await gd("about?fields=user(emai
 
 /* ---------- fusión ----------
    Por proyecto gana la versión con el cambio más reciente (p.updated). Un proyecto borrado (state.deleted[id] = fecha)
-   desaparece si nadie lo ha tocado después de borrarlo. Si se editó en los dos sitios desde la última sincronización,
-   se conserva también la versión perdedora como copia, para no perder nada. */
-function mergeSync(local, remote, lastSync) {
+   desaparece si nadie lo ha tocado después de borrarlo. Si se editó en los dos sitios, se juntan los cambios
+   (filas nuevas de los dos lados, etc.); solo si chocan de verdad se guarda la versión perdedora como copia. */
+/* Base de la fusión: cómo quedó cada proyecto en la última sincronización de ESTE dispositivo.
+   Con ella se sabe qué cambió en cada lado (fusión a tres bandas) sin depender de los relojes. */
+const GD_BASE = "graficalo.syncbase";
+function loadBase() { try { return JSON.parse(localStorage.getItem(GD_BASE)) || {}; } catch { return {}; } }
+function saveBase(projects) { try { const b = {}; projects.forEach(p => (b[p.id] = snap(p))); localStorage.setItem(GD_BASE, JSON.stringify(b)); } catch {} }
+const rowKey = r => JSON.stringify([r.l ?? "", Object.keys(r.c || {}).sort().map(k => [k, r.c[k]])]);
+// filas: se quitan las que borró o cambió cada lado y se añaden las nuevas de los dos
+function mergeRows(r0, ra, rb) {
+  const count = list => { const m = new Map(); list.forEach(r => { const k = rowKey(r); m.set(k, (m.get(k) || 0) + 1); }); return m; };
+  const c0 = count(r0), ca = count(ra), cb = count(rb);
+  const diff = (x, y) => { const m = new Map(); x.forEach((n, k) => { const d = n - (y.get(k) || 0); if (d > 0) m.set(k, d); }); return m; };
+  const remA = diff(c0, ca), remB = diff(c0, cb), addA = diff(ca, c0), addB = diff(cb, c0);
+  // la misma fila tocada en los dos lados y con cambios distintos: no se puede decidir sola
+  if ([...remA.keys()].some(k => remB.has(k)) && addA.size && addB.size) {
+    const same = addA.size === addB.size && [...addA].every(([k, n]) => addB.get(k) === n);
+    if (!same) return null;
+  }
+  const out = [], take = new Map(remA);
+  rb.forEach(r => { const k = rowKey(r), n = take.get(k) || 0; if (n > 0 && !addB.has(k)) { take.set(k, n - 1); return; } out.push(r); });
+  const extra = new Map(addA); addB.forEach((n, k) => { if (extra.has(k)) extra.set(k, Math.max(0, extra.get(k) - n)); });
+  ra.forEach(r => { const k = rowKey(r), n = extra.get(k) || 0; if (n > 0) { extra.set(k, n - 1); out.push(JSON.parse(JSON.stringify(r))); } });
+  return out;
+}
+// fusión a tres bandas de un proyecto; null si hay un choque que no se puede resolver solo
+function merge3(a, b, s0) {
+  const v0 = JSON.parse(s0), va = JSON.parse(snap(a)), vb = JSON.parse(snap(b)), newer = (a.updated || 0) >= (b.updated || 0) ? a : b;
+  const out = JSON.parse(JSON.stringify(newer));
+  for (let i = 0; i < snapFields.length; i++) {
+    const k = snapFields[i], x0 = JSON.stringify(v0[i]), xa = JSON.stringify(va[i]), xb = JSON.stringify(vb[i]);
+    if (xa === xb || xa === x0) { out[k] = vb[i]; continue; }
+    if (xb === x0) { out[k] = va[i]; continue; }
+    if (k === "rows") {
+      const r = mergeRows(v0[i] || [], va[i] || [], vb[i] || []); if (!r) return null;
+      if (newer.labelType === "date") r.sort((x, y) => (!x.l ? 1 : !y.l ? -1 : x.l < y.l ? -1 : x.l > y.l ? 1 : 0)); // por fecha; sin fecha al final
+      out.rows = r; continue;
+    }
+    if (k === "cols" || k === "labelType") return null; // estructura distinta en cada lado
+    out[k] = newer === a ? va[i] : vb[i]; // ajustes del gráfico, nombre…: gana el cambio más reciente
+  }
+  if (!out.rows) delete out.rows;
+  out.updated = Math.max(a.updated || 0, b.updated || 0) + 1;
+  return out;
+}
+function superset(x, y) {
+  const vx = JSON.parse(snap(x)), vy = JSON.parse(snap(y)), ri = snapFields.indexOf("rows");
+  if (vx.some((v, i) => i !== ri && JSON.stringify(v) !== JSON.stringify(vy[i]))) return false;
+  const m = new Map(); (vx[ri] || []).forEach(r => { const k = rowKey(r); m.set(k, (m.get(k) || 0) + 1); });
+  return (vy[ri] || []).every(r => { const k = rowKey(r), n = m.get(k) || 0; if (!n) return false; m.set(k, n - 1); return true; });
+}
+function mergeSync(local, remote, lastSync, base = {}) {
   const del = { ...(remote?.deleted || {}) };
   Object.entries(local.deleted || {}).forEach(([k, v]) => { if (!(del[k] >= v)) del[k] = v; });
   const old = Date.now() - 180 * 864e5;
@@ -81,14 +130,25 @@ function mergeSync(local, remote, lastSync) {
   const all = [...local.projects, ...(remote?.projects || [])];
   const copied = new Set(all.map(p => p.conflictOf).filter(Boolean));
   const out = [], losers = [];
+  let merged = 0;
   for (const id of new Set([...L.keys(), ...R.keys()])) {
     const a = L.get(id), b = R.get(id);
     let win = a || b;
     if (a && b) {
-      const ua = a.updated || 0, ub = b.updated || 0;
+      const ua = a.updated || 0, ub = b.updated || 0, sa = snap(a), sb = snap(b), s0 = base[id];
       win = ua >= ub ? a : b;
-      const lose = win === a ? b : a;
-      if (ua !== ub && lastSync && ua > lastSync && ub > lastSync && snap(a) !== snap(b) && !copied.has(id + ":" + (lose.updated || 0))) losers.push(lose);
+      if (sa !== sb && s0) {
+        if (sa === s0) win = b; // solo cambió el otro dispositivo
+        else if (sb === s0) win = a; // solo cambió este
+        else { const m = merge3(a, b, s0); if (m) { win = m; merged++; } else { const lose = win === a ? b : a; if (!copied.has(id + ":" + (lose.updated || 0))) losers.push(lose); } }
+      } else if (sa !== sb) {
+        // sin base (primera vez): si un lado solo tiene filas de más, ese lado contiene al otro
+        const both = ua !== ub && lastSync && ua > lastSync && ub > lastSync;
+        const sup = both ? (superset(a, b) ? a : superset(b, a) ? b : null) : null;
+        if (sup) win = sup;
+        const lose = win === a ? b : a;
+        if (both && !sup && !copied.has(id + ":" + (lose.updated || 0))) losers.push(lose);
+      }
     }
     if (del[id] && del[id] >= (win.updated || 0)) continue;
     delete del[id];
@@ -99,7 +159,7 @@ function mergeSync(local, remote, lastSync) {
     c.conflictOf = p.id + ":" + (p.updated || 0); c.id = uid(); c.name = p.name + " " + t("(otro dispositivo)"); c.updated = Date.now();
     out.push(c);
   });
-  return { projects: out, deleted: del, conflicts: losers.length };
+  return { projects: out, deleted: del, conflicts: losers.length, merged };
 }
 const syncFp = x => (x?.projects || []).map(p => p.id + ":" + (p.updated || 0)).sort().join(",") + "|" + Object.keys(x?.deleted || {}).sort().join(",");
 
@@ -133,14 +193,14 @@ async function syncNow(opts = {}) {
     for (const f of files.slice(1)) { // copias duplicadas (dos dispositivos creando a la vez): se funden y se borran
       try { remote = mergeSync(remote || { projects: [] }, await gdDownload(f.id), 0); await gd(`files/${f.id}`, { method: "DELETE" }); } catch {}
     }
-    const m = mergeSync({ projects: state.projects, deleted: state.deleted }, remote, settings.sync.lastSync || 0);
+    const m = mergeSync({ projects: state.projects, deleted: state.deleted }, remote, settings.sync.lastSync || 0, loadBase());
     const fp = syncFp(m);
-    if (fp !== localFp || m.conflicts) applyMerged(m);
-    if (!remote || fp !== syncFp(remote) || m.conflicts) {
+    if (fp !== localFp || m.conflicts || m.merged) applyMerged(m);
+    if (!remote || fp !== syncFp(remote) || m.conflicts || m.merged) {
       const obj = { app: "graficalo", v: 1, updated: Date.now(), projects: state.projects, deleted: state.deleted };
       if (fileId) await gdUpdate(fileId, obj); else await gdCreate(obj);
     }
-    settings.sync.lastSync = Date.now(); settings.sync.err = 0; saveSettings();
+    settings.sync.lastSync = Date.now(); settings.sync.err = 0; saveSettings(); saveBase(state.projects);
     syncState.lastPull = Date.now(); syncState.lastFp = syncFp(state);
     if (m.conflicts) toast(t("Se ha guardado una copia de {n} proyecto(s) que se editaron en dos dispositivos a la vez.", { n: m.conflicts }));
     setSync("ok");

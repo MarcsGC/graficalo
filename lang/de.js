@@ -894,4 +894,5 @@ I18N.de = {
 "{n} días sin datos": "{n} Tage ohne Daten",
 "Gráficos más limpios: líneas suaves sin picos falsos, rejilla más ligera y fechas del eje por días, semanas o meses.": "Klarere Diagramme: glatte Linien ohne falsche Spitzen, ein leichteres Raster und Datumsachsen nach Tagen, Wochen oder Monaten.",
 "Las fechas se ven a su distancia real, y los días sin datos se marcan con una franja y una línea discontinua.": "Daten erscheinen in ihrem echten Abstand, und Tage ohne Daten werden mit einem Band und einer gestrichelten Linie markiert.",
+"Si editas el mismo proyecto en el móvil y en el ordenador, los cambios se juntan en vez de crear una copia.": "Wenn du dasselbe Projekt auf dem Handy und am Computer bearbeitest, werden die Änderungen zusammengeführt statt eine Kopie anzulegen.",
 };

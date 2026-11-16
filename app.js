@@ -662,7 +662,7 @@ function aboutSheet() {
     <p class="hint"><a href="privacidad.html" target="_blank" rel="noopener" style="color:var(--accent)">${t("Política de privacidad")}</a></p>
     <div class="actions"><button class="btn primary" data-act="close">${t("Cerrar")}</button></div>`, () => {});
 }
-const APP_VERSION = "0.8";
+const APP_VERSION = "0.8.1";
 
 /* =========================================================
    Tabla de datos
