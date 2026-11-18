@@ -305,8 +305,9 @@ function agoShort(ts) {
   const h = Math.round(m / 60); if (h < 24) return t("hace {n} h", { n: h });
   return fmtDate(isoOf(new Date(ts)), new Date(ts).getFullYear() !== new Date().getFullYear());
 }
-function showHome() {
+function showHome(fromBack) {
   const h = $("#home"), has = state.projects.length > 0;
+  if (h.hidden && !fromBack) navPop("proj");
   const list = [...state.projects].sort((a, b) => (b.updated || 0) - (a.updated || 0));
   const syncLine = typeof syncOn === "function" && syncOn() ? `<p class="homesync">${ICON(IC.cloud)}<span>${esc(syncMenuSub())}</span></p>` : "";
   h.innerHTML = `<div class="homein">
@@ -368,7 +369,7 @@ function homeMenu() {
     if (act === "about") aboutSheet();
   });
 }
-function hideHome() { $("#home").hidden = true; document.body.classList.remove("athome"); }
+function hideHome() { if ($("#home").hidden) return; navPush("proj"); $("#home").hidden = true; document.body.classList.remove("athome"); }
 
 /* migraciones */
 function upgradeV2(p) {
@@ -662,7 +663,7 @@ function aboutSheet() {
     <p class="hint"><a href="privacidad.html" target="_blank" rel="noopener" style="color:var(--accent)">${t("Política de privacidad")}</a></p>
     <div class="actions"><button class="btn primary" data-act="close">${t("Cerrar")}</button></div>`, () => {});
 }
-const APP_VERSION = "0.8.1";
+const APP_VERSION = "0.8.2";
 
 /* =========================================================
    Tabla de datos
@@ -1070,16 +1071,39 @@ $("#fileIn").addEventListener("change", async e => {
 });
 
 /* =========================================================
+   Botón «atrás» del móvil
+   Cada capa (proyecto abierto, hoja, pantalla completa) deja una entrada en el historial:
+   atrás cierra la hoja o la pantalla completa, y desde un proyecto vuelve a la lista de proyectos.
+   Las operaciones van en cola porque history.back() no es inmediato.
+   ========================================================= */
+const NAV = { busy: false, q: [], tm: 0 };
+function navRun() {
+  while (!NAV.busy && NAV.q.length) {
+    const op = NAV.q.shift(), g = history.state?.g;
+    if (op.push) { if (g !== op.g) try { history.pushState({ g: op.g }, ""); } catch {} }
+    else if (g === op.g) { NAV.busy = true; clearTimeout(NAV.tm); NAV.tm = setTimeout(() => { NAV.busy = false; navRun(); }, 600); history.back(); }
+  }
+}
+const navPush = g => { NAV.q.push({ push: true, g }); navRun(); };
+const navPop = g => { NAV.q.push({ push: false, g }); navRun(); };
+window.addEventListener("popstate", () => {
+  if (NAV.busy) { NAV.busy = false; clearTimeout(NAV.tm); navRun(); return; } // atrás lanzado por la propia app
+  if (!$("#fs").hidden) return closeFullscreen(true);
+  if (!$("#sheet").hidden) return closeSheet(true);
+  if ($("#home").hidden && state.projects.length) { track(); showHome(true); }
+});
+
+/* =========================================================
    Hojas, avisos, portapapeles
    ========================================================= */
 let sheetHandler = null, lastFocus = null;
 function openSheet(html, handler) {
-  if ($("#sheet").hidden) lastFocus = document.activeElement;
+  if ($("#sheet").hidden) { lastFocus = document.activeElement; navPush("sheet"); }
   const old = $("#sheetCard"), fresh = old.cloneNode(false); old.replaceWith(fresh); // quita los oyentes de la hoja anterior
   $("#sheetCard").innerHTML = html; sheetHandler = handler; $("#sheet").hidden = false; $("#sheetCard").scrollTop = 0;
   setTimeout(() => { if (!document.activeElement?.closest("#sheetCard")) $("#sheetCard").focus({ preventScroll: true }); }, 30);
 }
-function closeSheet() { $("#sheet").hidden = true; sheetHandler = null; lastFocus?.focus?.({ preventScroll: true }); }
+function closeSheet(fromBack) { if ($("#sheet").hidden) return; if (!fromBack) navPop("sheet"); $("#sheet").hidden = true; sheetHandler = null; lastFocus?.focus?.({ preventScroll: true }); }
 $("#sheet").addEventListener("click", e => {
   if (e.target.id === "sheet") return closeSheet();
   const b = e.target.closest("[data-act]"); if (!b || b.disabled) return;

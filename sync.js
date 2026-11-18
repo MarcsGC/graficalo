@@ -70,8 +70,8 @@ async function gdEmail() { try { return (await (await gd("about?fields=user(emai
 
 /* ---------- fusión ----------
    Por proyecto gana la versión con el cambio más reciente (p.updated). Un proyecto borrado (state.deleted[id] = fecha)
-   desaparece si nadie lo ha tocado después de borrarlo. Si se editó en los dos sitios, se juntan los cambios
-   (filas nuevas de los dos lados, etc.); solo si chocan de verdad se guarda la versión perdedora como copia. */
+   desaparece si nadie lo ha tocado después de borrarlo. Si se editó en los dos sitios desde la última sincronización,
+   se conserva también la versión perdedora como copia, para no perder nada. */
 /* Base de la fusión: cómo quedó cada proyecto en la última sincronización de ESTE dispositivo.
    Con ella se sabe qué cambió en cada lado (fusión a tres bandas) sin depender de los relojes. */
 const GD_BASE = "graficalo.syncbase";

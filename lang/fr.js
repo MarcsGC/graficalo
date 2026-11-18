@@ -895,4 +895,5 @@ I18N.fr = {
 "Gráficos más limpios: líneas suaves sin picos falsos, rejilla más ligera y fechas del eje por días, semanas o meses.": "Graphiques plus nets : courbes lisses sans faux pics, grille plus légère et axe des dates par jours, semaines ou mois.",
 "Las fechas se ven a su distancia real, y los días sin datos se marcan con una franja y una línea discontinua.": "Les dates s’affichent à leur vraie distance, et les jours sans données sont signalés par une bande et une ligne pointillée.",
 "Si editas el mismo proyecto en el móvil y en el ordenador, los cambios se juntan en vez de crear una copia.": "Si vous modifiez le même projet sur votre téléphone et votre ordinateur, les changements sont fusionnés au lieu de créer une copie.",
+"El botón «atrás» del móvil te lleva a la lista de proyectos y cierra los menús, en vez de salir de la app.": "Le bouton retour du téléphone ramène à la liste des projets et ferme les menus, au lieu de quitter l’app.",
 };

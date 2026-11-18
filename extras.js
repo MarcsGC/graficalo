@@ -114,7 +114,7 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) hidde
 
 /* ---------- novedades ---------- */
 const WHATS_NEW = {
-  "0.8.1": ["Si editas el mismo proyecto en el móvil y en el ordenador, los cambios se juntan en vez de crear una copia."],
+  "0.8.2": ["El botón «atrás» del móvil te lleva a la lista de proyectos y cierra los menús, en vez de salir de la app.", "Si editas el mismo proyecto en el móvil y en el ordenador, los cambios se juntan en vez de crear una copia."],
   "0.8": ["Gráficos más limpios: líneas suaves sin picos falsos, rejilla más ligera y fechas del eje por días, semanas o meses.", "Las fechas se ven a su distancia real, y los días sin datos se marcan con una franja y una línea discontinua."],
   "0.7": ["Gráficalo tiene nueva dirección: marcsgc.github.io/graficalo/. Tus proyectos y ajustes siguen aquí.", "Arreglos de diseño en móviles pequeños, en el panel y en modo oscuro."],
   "0.6": ["Tus proyectos en tarjetas al abrir la app, con su último valor y un minigráfico.", "Unidades en las columnas (€, kg, %…) que se ven en la tabla, los gráficos y las estadísticas.", "Un resumen en una frase encima de las estadísticas.", "Botones de un toque en el registro rápido para respuestas como Sí / No.", "Modo sencillo: las estadísticas avanzadas se activan en Ajustes."],

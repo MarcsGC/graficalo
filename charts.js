@@ -669,12 +669,14 @@ $("#fsBtn").addEventListener("click", openFullscreen);
 async function openFullscreen() {
   const ch = activeChart(), cfg = buildConfig(ch, "fs");
   if (cfg.empty) { toast(cfg.empty); return; }
+  if ($("#fs").hidden) navPush("fs");
   $("#fs").hidden = false; $("#fsTitle").textContent = ch.title || ch.name; $("#fsReset").hidden = true;
   const zoomable = !!cfg.options.plugins.zoom?.pan?.enabled; $("#fsHint").hidden = !zoomable;
   try { await $("#fs").requestFullscreen?.(); await screen.orientation?.lock?.("landscape"); } catch {}
   setTimeout(() => { fsChart?.destroy(); fsChart = new Chart($("#fsChart"), buildConfig(ch, "fs")); }, 120);
 }
-function closeFullscreen() {
+function closeFullscreen(fromBack) {
+  if (!fromBack && !$("#fs").hidden) navPop("fs");
   fsChart?.destroy(); fsChart = null; $("#fs").hidden = true;
   try { screen.orientation?.unlock?.(); } catch {}
   if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});

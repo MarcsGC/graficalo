@@ -20,6 +20,7 @@
   startupSync();
   checkIncomingLink();
   window.addEventListener("hashchange", checkIncomingLink);
+  if ($("#home").hidden && state.projects.length) navPush("proj"); // abierta directamente en un proyecto: atrás lleva a la lista
   if ("serviceWorker" in navigator && location.protocol === "https:" && !/claude|anthropic/.test(location.hostname)) {
     window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
   }
