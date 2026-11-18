@@ -938,4 +938,5 @@ I18N.pt = {
 "Límite o meta por semana, mes o año (por ejemplo, gastar como máximo 300 € al mes), con barra de progreso.": "Limite ou meta por semana, mês ou ano (por exemplo, gastar no máximo 300 € por mês), com barra de progresso.",
 "El objetivo ya no encoge el gráfico: si está lejos de tus datos, se indica con una flecha en el borde. Y verás cuánto tiempo te falta para llegar.": "O objetivo não encolhe mais o gráfico: se estiver longe dos seus dados, uma seta na borda indica. E você verá quanto tempo falta para chegar.",
 "Estadísticas anónimas de uso para saber qué mejorar. Nunca se envían tus datos y se pueden apagar en Ajustes.": "Estatísticas anônimas de uso para saber o que melhorar. Seus dados nunca são enviados e você pode desativá-las nos Ajustes.",
+"Con un objetivo lejano, el gráfico ya no se encoge: la tendencia se prolonga solo un poco y el objetivo se marca con una flecha en el borde.": "Com um objetivo distante, o gráfico não encolhe mais: a tendência se estende só um pouco e o objetivo é marcado com uma seta na borda.",
 };

@@ -938,4 +938,5 @@ I18N.ca = {
 "Límite o meta por semana, mes o año (por ejemplo, gastar como máximo 300 € al mes), con barra de progreso.": "Límit o meta per setmana, mes o any (per exemple, gastar com a màxim 300 € al mes), amb barra de progrés.",
 "El objetivo ya no encoge el gráfico: si está lejos de tus datos, se indica con una flecha en el borde. Y verás cuánto tiempo te falta para llegar.": "L’objectiu ja no encongeix el gràfic: si és lluny de les teves dades, s’indica amb una fletxa a la vora. I veuràs quant temps et falta per arribar-hi.",
 "Estadísticas anónimas de uso para saber qué mejorar. Nunca se envían tus datos y se pueden apagar en Ajustes.": "Estadístiques anònimes d’ús per saber què millorar. Mai s’envien les teves dades i es poden desactivar a Configuració.",
+"Con un objetivo lejano, el gráfico ya no se encoge: la tendencia se prolonga solo un poco y el objetivo se marca con una flecha en el borde.": "Amb un objectiu llunyà, el gràfic ja no s’encongeix: la tendència es perllonga només una mica i l’objectiu es marca amb una fletxa a la vora.",
 };

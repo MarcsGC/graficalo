@@ -361,7 +361,10 @@ function buildConfig0(ch, mode = "main") {
         if (ch.ma7 && pts.length > 2) ds.push({ type: "line", _u: unitOf(c), label: t("Media 7 días") + tag, data: pts.map(([x]) => ({ x, y: S.mean(pts.filter(q => q[0] > x - 7 * 864e5 && q[0] <= x).map(q => q[1])) })), borderColor: alpha(colColor(c), 0.5), borderWidth: 4, pointRadius: 0, pointHoverRadius: 0, fill: false, cubicInterpolationMode: "monotone", borderCapStyle: "round", _noLabels: true });
         const tr = ch.trend ? trendInfo(c.id) : null;
         if (tr) {
-          const end = Math.min(Math.max(tr.lastTs + 14 * 864e5, c === firstNum && tr.eta ? tr.eta : 0), tr.lastTs + 180 * 864e5);
+          // la tendencia se prolonga solo un poco (un tercio del periodo con datos, entre 1 y 8 semanas):
+          // llevarla hasta la fecha del objetivo aplastaba los datos en una esquina; el tiempo que falta ya se dice en el texto
+          const span = tr.lastTs - Math.min(...d.ts.filter(Number.isFinite)), ahead = Math.min(56 * 864e5, Math.max(7 * 864e5, span / 3));
+          const end = tr.lastTs + ahead;
           xMaxExtra = Math.max(xMaxExtra, end);
           const line = []; for (let k = 0; k <= 20; k++) { const x = tr.fromTs + ((end - tr.fromTs) * k) / 20; line.push({ x, y: tr.at(x / 864e5) }); }
           ds.push({ type: "line", _u: unitOf(c), label: t("Tendencia") + tag, data: line, borderColor: css("--amber"), borderDash: [7, 5], borderWidth: 2, pointRadius: 0, pointHoverRadius: 0, fill: false, _noLabels: true });

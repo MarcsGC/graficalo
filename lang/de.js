@@ -938,4 +938,5 @@ I18N.de = {
 "Límite o meta por semana, mes o año (por ejemplo, gastar como máximo 300 € al mes), con barra de progreso.": "Limit oder Ziel pro Woche, Monat oder Jahr (zum Beispiel höchstens 300 € im Monat), mit Fortschrittsbalken.",
 "El objetivo ya no encoge el gráfico: si está lejos de tus datos, se indica con una flecha en el borde. Y verás cuánto tiempo te falta para llegar.": "Das Ziel staucht das Diagramm nicht mehr: Liegt es weit von deinen Daten entfernt, zeigt ein Pfeil am Rand es an. Außerdem siehst du, wie lange es noch dauert.",
 "Estadísticas anónimas de uso para saber qué mejorar. Nunca se envían tus datos y se pueden apagar en Ajustes.": "Anonyme Nutzungsstatistiken, um zu wissen, was verbessert werden soll. Deine Daten werden nie gesendet, und du kannst sie in den Einstellungen ausschalten.",
+"Con un objetivo lejano, el gráfico ya no se encoge: la tendencia se prolonga solo un poco y el objetivo se marca con una flecha en el borde.": "Bei einem weit entfernten Ziel schrumpft das Diagramm nicht mehr: Der Trend wird nur ein Stück verlängert und das Ziel mit einem Pfeil am Rand angezeigt.",
 };

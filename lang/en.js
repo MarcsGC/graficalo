@@ -480,4 +480,5 @@ I18N.en = {
 "Límite o meta por semana, mes o año (por ejemplo, gastar como máximo 300 € al mes), con barra de progreso.": "Limit or target per week, month or year (for example, spend at most €300 a month), with a progress bar.",
 "El objetivo ya no encoge el gráfico: si está lejos de tus datos, se indica con una flecha en el borde. Y verás cuánto tiempo te falta para llegar.": "Your goal no longer shrinks the chart: if it’s far from your data, an arrow at the edge shows it. And you’ll see how long it will take to get there.",
 "Estadísticas anónimas de uso para saber qué mejorar. Nunca se envían tus datos y se pueden apagar en Ajustes.": "Anonymous usage statistics to know what to improve. Your data is never sent, and you can turn them off in Settings.",
+"Con un objetivo lejano, el gráfico ya no se encoge: la tendencia se prolonga solo un poco y el objetivo se marca con una flecha en el borde.": "With a distant goal, the chart no longer shrinks: the trend extends only a little and the goal is shown with an arrow at the edge.",
 };

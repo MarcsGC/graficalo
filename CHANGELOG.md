@@ -1,5 +1,10 @@
 # Registro de cambios de Gráficalo
 
+## 0.9.1 · 18 de noviembre de 2026
+
+### Arreglado
+- Con un objetivo lejano el gráfico seguía encogido: la línea de tendencia se prolongaba hasta la fecha estimada del objetivo (hasta 6 meses), lo que aplastaba los datos en una esquina y estiraba el eje Y hasta el objetivo. Ahora la tendencia se prolonga un tercio del periodo con datos (entre 1 y 8 semanas); el objetivo lejano se marca con la flecha del borde y el tiempo que falta sigue en el texto del registro rápido.
+
 ## 0.9 · 18 de noviembre de 2026
 
 ### Añadido
