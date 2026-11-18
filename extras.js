@@ -114,6 +114,7 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) hidde
 
 /* ---------- novedades ---------- */
 const WHATS_NEW = {
+  "0.9": ["Nueva plantilla «Registro mensual»: un valor cada mes, con recordatorio el día 1 en tu calendario y aviso en la lista mientras falte.", "Límite o meta por semana, mes o año (por ejemplo, gastar como máximo 300 € al mes), con barra de progreso.", "El objetivo ya no encoge el gráfico: si está lejos de tus datos, se indica con una flecha en el borde. Y verás cuánto tiempo te falta para llegar.", "Estadísticas anónimas de uso para saber qué mejorar. Nunca se envían tus datos y se pueden apagar en Ajustes."],
   "0.8.2": ["El botón «atrás» del móvil te lleva a la lista de proyectos y cierra los menús, en vez de salir de la app.", "Si editas el mismo proyecto en el móvil y en el ordenador, los cambios se juntan en vez de crear una copia."],
   "0.8": ["Gráficos más limpios: líneas suaves sin picos falsos, rejilla más ligera y fechas del eje por días, semanas o meses.", "Las fechas se ven a su distancia real, y los días sin datos se marcan con una franja y una línea discontinua."],
   "0.7": ["Gráficalo tiene nueva dirección: marcsgc.github.io/graficalo/. Tus proyectos y ajustes siguen aquí.", "Arreglos de diseño en móviles pequeños, en el panel y en modo oscuro."],

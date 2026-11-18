@@ -18,6 +18,7 @@
   if (location.hash === "#quick") { try { history.replaceState(null, "", location.pathname + location.search); } catch {} openQuickFromShortcut(); }
   startupExtras();
   startupSync();
+  setTimeout(gcDaily, 4000);
   checkIncomingLink();
   window.addEventListener("hashchange", checkIncomingLink);
   if ($("#home").hidden && state.projects.length) navPush("proj"); // abierta directamente en un proyecto: atrás lleva a la lista

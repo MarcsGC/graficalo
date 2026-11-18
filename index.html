@@ -387,6 +387,16 @@ body.athome .app{visibility:hidden}
 @media (min-width:1000px){.toast{bottom:24px}}
 @media (prefers-reduced-motion:no-preference){.sheet .card,.onb .card{animation:up .2s ease-out}@keyframes up{from{transform:translateY(24px);opacity:.6}}}
 .offscreen{position:fixed;left:-10000px;top:0;width:1600px;height:1000px;pointer-events:none}
+.projcard .pdue{display:block;color:var(--amber);font-weight:600;margin-top:3px}
+.projcard.due{box-shadow:inset 0 0 0 1.5px var(--amber)}
+.pgoal{margin:10px 0 4px;padding:10px 12px;border:1px solid var(--grid);border-radius:10px;font-size:.9rem}
+.pgtop{display:flex;justify-content:space-between;gap:8px;align-items:baseline}.pgtop>span:last-child{white-space:nowrap;font-weight:600}
+.pgbar{height:8px;border-radius:99px;background:var(--grid);margin:8px 0 6px;overflow:hidden}
+.pgbar i{display:block;height:100%;background:var(--accent);border-radius:inherit}
+.pgoal small{color:var(--muted)}
+.pgoal.over .pgbar i{background:var(--amber)}.pgoal.over small{color:var(--amber);font-weight:600}
+.pgoal.done small{color:var(--accent);font-weight:600}
+.qdate input[type=month]{font:inherit}
 </style>
 </head>
 <body>

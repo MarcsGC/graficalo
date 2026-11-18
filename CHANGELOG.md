@@ -1,5 +1,17 @@
 # Registro de cambios de Gráficalo
 
+## 0.9 · 18 de noviembre de 2026
+
+### Añadido
+- Plantilla «Registro mensual» (grupo Dinero y trabajo): un valor por mes. El registro rápido elige el mes en vez del día, la fecha se guarda como el día 1 y la tabla, el eje y el tooltip muestran solo el mes. Los huecos se marcan en meses («1 mes sin datos»).
+- Recordatorio mensual: botón «Recordatorio» en el registro rápido de los proyectos mensuales. Añade a Google Calendar (enlace con la regla de repetición) o descarga un .ics un aviso el día 1 de cada mes a las 10:00. Además, la tarjeta del proyecto en la lista se marca con «Falta noviembre» mientras el mes actual no tenga valor.
+- Límite o meta por periodo (Objetivo y ajustes): por semana, mes o año, como máximo o como mínimo. Barra de progreso en el registro rápido con lo que llevas, lo que queda o cuánto te has pasado. Se suma, se hace la media o se toma el último valor según la columna. Se sincroniza con Drive (`pgoal`).
+- Estadísticas anónimas de uso con GoatCounter (cuenta `lazyantapps`, la misma que la web personal; los eventos llevan el prefijo `graficalo/`). Solo nombres de eventos: plantilla elegida, tipo de gráfico, imagen, Drive, recordatorio y, una vez al día, versión, idioma, web o Android y número de proyectos (hasta 10). Interruptor en Ajustes.
+
+### Cambiado
+- Una línea de referencia u objetivo muy lejos de los datos ya no estira el eje (encogía el gráfico): se muestra como etiqueta con flecha en el borde (▲/▼).
+- La estimación del objetivo dice cuánto falta: «A este ritmo llegas al objetivo en 6 semanas (hacia el 3 ene)». En proyectos mensuales el ritmo es por mes.
+
 ## 0.8.2 · 16 de noviembre de 2026
 
 ### Arreglado

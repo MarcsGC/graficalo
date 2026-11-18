@@ -93,9 +93,15 @@ const annotPlugin = {
     (o.lines || []).forEach(l => {
       const v = l.value; if (!Number.isFinite(v)) return;
       const sc = o.horizontal ? chart.scales.x : chart.scales.y; if (!sc) return;
-      const px = sc.getPixelForValue(v);
-      if (o.horizontal ? px < A.left || px > A.right : px < A.top || px > A.bottom) return;
-      const col = l.color || o.danger;
+      const px = sc.getPixelForValue(v), col = l.color || o.danger;
+      if (o.horizontal ? px < A.left || px > A.right : px < A.top || px > A.bottom) {
+        // fuera de la vista: etiqueta pegada al borde con una flecha hacia donde está
+        const text = (l.label ? l.label + " · " : "") + fmt(v);
+        ctx.font = `600 ${fs}px ${o.font}`; const tw = ctx.measureText(text).width + 22;
+        if (o.horizontal) chip((px < A.left ? "◀ " : "") + text + (px > A.right ? " ▶" : ""), px < A.left ? A.left + 2 : A.right - tw - 2, A.top + 2, col, o.sheet);
+        else chip((px < A.top ? "▲ " : "▼ ") + text, A.right - tw - 2, px < A.top ? A.top + 2 : A.bottom - fs - 10, col, o.sheet);
+        return;
+      }
       ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.setLineDash([6, 4]); ctx.beginPath();
       if (o.horizontal) { ctx.moveTo(px, A.top); ctx.lineTo(px, A.bottom); } else { ctx.moveTo(A.left, px); ctx.lineTo(A.right, px); }
       ctx.stroke(); ctx.setLineDash([]);
@@ -150,8 +156,8 @@ const gapBands = {
       ctx.fillStyle = o.fill; ctx.fillRect(x0, A.top, x1 - x0, A.bottom - A.top);
       ctx.strokeStyle = o.edge; ctx.lineWidth = 1; ctx.setLineDash([2, 3]); ctx.beginPath();
       ctx.moveTo(Math.round(x0) + 0.5, A.top); ctx.lineTo(Math.round(x0) + 0.5, A.bottom); ctx.moveTo(Math.round(x1) - 0.5, A.top); ctx.lineTo(Math.round(x1) - 0.5, A.bottom); ctx.stroke(); ctx.setLineDash([]);
-      const txt = n === 1 ? t("1 día sin datos") : t("{n} días sin datos", { n }); ctx.font = `500 ${o.fs}px ${o.font}`;
-      const short = n === 1 ? "1 d" : n + " d", tw = ctx.measureText(txt).width, label = tw + 10 < x1 - x0 ? txt : ctx.measureText(short).width + 6 < x1 - x0 ? short : "";
+      const txt = o.months ? (n === 1 ? t("1 mes sin datos") : t("{n} meses sin datos", { n })) : n === 1 ? t("1 día sin datos") : t("{n} días sin datos", { n }); ctx.font = `500 ${o.fs}px ${o.font}`;
+      const short = o.months ? n + " m" : n === 1 ? "1 d" : n + " d", tw = ctx.measureText(txt).width, label = tw + 10 < x1 - x0 ? txt : ctx.measureText(short).width + 6 < x1 - x0 ? short : "";
       if (label) { ctx.fillStyle = o.ink; ctx.textAlign = "center"; ctx.textBaseline = "bottom"; ctx.fillText(label, (x0 + x1) / 2, A.bottom - 6); }
     });
     ctx.restore();
@@ -198,11 +204,12 @@ function calendarLabel(v, i, ticks, unit) {
   return d.toLocaleDateString(loc, newYear || (!prev && data.multiYear) ? { day: "numeric", month: "short", year: "2-digit" } : { day: "numeric", month: "short" });
 }
 // huecos: tramos entre registros mucho más largos de lo habitual
-function findGaps(xs) {
+function findGaps(xs, monthly) {
   const s = [...new Set(xs.filter(Number.isFinite))].sort((a, b) => a - b); if (s.length < 4) return { thr: Infinity, ranges: [] };
   const diffs = s.slice(1).map((v, i) => v - s[i]).sort((a, b) => a - b), med = diffs[Math.floor(diffs.length / 2)];
-  const thr = Math.max(med * 2.5, med + 2 * DAY) + 36e5, ranges = [];
-  for (let i = 1; i < s.length; i++) if (s[i] - s[i - 1] > thr) ranges.push([s[i - 1], s[i], Math.round((s[i] - s[i - 1]) / DAY) - 1]);
+  // en proyectos mensuales basta con que falte un mes; los huecos se cuentan en meses
+  const thr = monthly ? 45 * DAY : Math.max(med * 2.5, med + 2 * DAY) + 36e5, ranges = [];
+  for (let i = 1; i < s.length; i++) if (s[i] - s[i - 1] > thr) ranges.push([s[i - 1], s[i], monthly ? Math.round((s[i] - s[i - 1]) / (30.44 * DAY)) - 1 : Math.round((s[i] - s[i - 1]) / DAY) - 1]);
   return { thr, ranges, med };
 }
 
@@ -286,13 +293,20 @@ function buildConfig0(ch, mode = "main") {
   const annot = horizontal => {
     const notes = (ch.notes || []).map(n => ({ index: noteIndex(n.label), text: n.text }));
     const lv = (ch.lines || []).map(l => l.value).filter(Number.isFinite);
-    if (lv.length) { const ax = horizontal ? base.scales.x : base.scales.y; ax.suggestedMin = Math.min(...lv); ax.suggestedMax = Math.max(...lv); ax.grace = "6%"; }
+    // una línea (p. ej. el objetivo) muy lejos de los datos no estira el eje: se indica con una flecha en el borde
+    const vals = (ch.series || []).map(colById).filter(c => c && isNum(c)).flatMap(c => d.series(c.id)).filter(Number.isFinite);
+    let near = lv;
+    if (vals.length) {
+      const lo = Math.min(...vals), hi = Math.max(...vals), span = hi - lo || Math.abs(hi) * 0.1 || 1;
+      near = lv.filter(v => v >= lo - span * 0.6 && v <= hi + span * 0.6);
+    }
+    if (near.length) { const ax = horizontal ? base.scales.x : base.scales.y; ax.suggestedMin = Math.min(...near); ax.suggestedMax = Math.max(...near); ax.grace = "6%"; }
     base.plugins.annot = { on: !!((ch.lines || []).length || ch.markMax || ch.markMin || notes.length), lines: ch.lines || [], markMax: ch.markMax, markMin: ch.markMin, notes, horizontal, fs: Math.max(9, fs - 1), font: css("--body"), ink, sheet: css("--sheet"), danger: css("--amber") };
   };
   const labels = d.labels, sel = ch.series.map(colById).filter(c => c && isNum(c));
   const useTime = ["line", "area", "bar"].includes(ch.type) && d.ts && d.ts.length > 1 && d.ts.every(Number.isFinite);
   let xMaxExtra = -Infinity;
-  const gaps = useTime ? findGaps(d.ts) : { thr: Infinity, ranges: [] };
+  const gaps = useTime ? findGaps(d.ts, isMonthly(cur())) : { thr: Infinity, ranges: [] };
   const timeAxis = () => {
     const xs = d.ts, mn0 = Math.min(...xs), mx0 = Math.max(Math.max(...xs), xMaxExtra), pad = Math.max(DAY / 2, (mx0 - mn0) * 0.025);
     const mn = mn0 - pad, mx = mx0 + pad; let unit = "d";
@@ -301,9 +315,9 @@ function buildConfig0(ch, mode = "main") {
       ticks: { color: muted, maxRotation: 0, autoSkip: false, padding: 6, callback: (v, i, ticks) => calendarLabel(v, i, ticks, unit) },
       afterBuildTicks: sc => { const tk = calendarTicks(mn, mx, Math.max(3, Math.floor((sc.width || 300) / 64))); unit = tk.unit; sc.ticks = tk; }
     });
-    base.plugins.tooltip.callbacks.title = items => items.length ? fmtDate(isoOf(new Date(items[0].parsed.x)), true) : "";
+    base.plugins.tooltip.callbacks.title = items => items.length ? (isMonthly(cur()) ? fmtMonth(isoOf(new Date(items[0].parsed.x)), true) : fmtDate(isoOf(new Date(items[0].parsed.x)), true)) : "";
     base.interaction = { mode: "nearest", axis: "x", intersect: false };
-    base.plugins.gapbands = { ranges: ch.type === "bar" ? gaps.ranges.map(([a, b, n]) => [a + gaps.med * 0.5, b - gaps.med * 0.5, n]) : gaps.ranges, fill: alpha(toHex(grid), 0.45), edge: alpha(toHex(muted), 0.35), ink: muted, fs: Math.max(9, fs - 2), font: css("--body") };
+    base.plugins.gapbands = { months: isMonthly(cur()), ranges: ch.type === "bar" ? gaps.ranges.map(([a, b, n]) => [a + gaps.med * 0.5, b - gaps.med * 0.5, n]) : gaps.ranges, fill: alpha(toHex(grid), 0.45), edge: alpha(toHex(muted), 0.35), ink: muted, fs: Math.max(9, fs - 2), font: css("--body") };
   };
   // tramo sin datos: línea discontinua y más suave
   const gapSeg = col => ({
@@ -524,7 +538,7 @@ function typeSheet() {
     <div class="actions"><button class="btn ghost" data-act="close">${t("Cerrar")}</button></div>`,
   act => {
     if (!act.startsWith("type:")) return;
-    const p = cur(); ch.type = act.slice(5);
+    const p = cur(); ch.type = act.slice(5); gc("grafico/" + ch.type);
     const nums = numCols();
     if (MULTI.includes(ch.type) && !ch.series.length && nums[0]) ch.series = [nums[0].id];
     if (ch.type === "combo" && ch.series.length < 2 && nums.length > 1) ch.series = nums.slice(0, 2).map(c => c.id);
@@ -734,7 +748,7 @@ function renderChartImage(ch, { w = 760, h = 460, theme = "light", scale = 2.6 }
 const dataURLtoBlob = url => fetch(url).then(r => r.blob());
 $("#exportBtn").addEventListener("click", () => imageSheet("light"));
 function imageSheet(theme) {
-  const ch = activeChart(), url = renderChartImage(ch, { theme });
+  const ch = activeChart(), url = renderChartImage(ch, { theme }); gc("imagen");
   if (!url) { toast(t("Primero añade datos al gráfico")); return; }
   const name = (ch.title || `${cur().name} ${ch.name}`).replace(/[\\/:*?"<>|]/g, "").trim() + ".png";
   openSheet(`<h3>${t("Imagen del gráfico")}</h3>

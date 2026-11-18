@@ -91,6 +91,19 @@ function parseDate(v) { // devuelve "YYYY-MM-DD" o ""
   function valid(y, mo, d) { const dt = new Date(y, mo - 1, d); return dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d ? isoOf(dt) : ""; }
 }
 const tsOf = iso => { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d).getTime(); };
+// proyectos de un valor al mes: la fecha guardada es el día 1 y se muestra solo el mes
+const isMonthly = p => !!p && p.period === "month";
+const ymOf = iso => String(iso ?? "").slice(0, 7);
+const monthNow = () => todayISO().slice(0, 7) + "-01";
+function fmtMonth(iso, long) { if (!iso) return ""; return new Date(tsOf(iso)).toLocaleDateString(LOC(), long ? { month: "long", year: "numeric" } : { month: "short", year: "numeric" }).replace(".", ""); }
+const fmtLbl = (p, iso, withYear) => (isMonthly(p) ? fmtMonth(iso) : fmtDate(iso, withYear));
+// tiempo aproximado: días, semanas o meses
+function durText(days) {
+  days = Math.max(1, Math.round(days));
+  if (days < 14) return days === 1 ? t("1 día") : t("{n} días", { n: days });
+  if (days < 63) return t("{n} semanas", { n: Math.round(days / 7) });
+  const m = Math.round(days / 30.44); return m <= 1 ? t("1 mes") : t("{n} meses", { n: m });
+}
 function fmtDate(iso, withYear) {
   if (!iso) return "";
   const d = new Date(tsOf(iso));
@@ -111,7 +124,7 @@ function mk(name, labelName, colDefs, rows, charts = [{}], stats = {}, extra = {
   const cols = colDefs.map(([n, formula, kind]) => ({ id: uid(), name: n, kind: kind || (formula ? "formula" : "num"), formula: formula || null, color: null }));
   const id = i => (i === "label" ? LABEL : cols[i] ? cols[i].id : null);
   const p = {
-    id: uid(), name, labelName, labelType: extra.labelType || "text", cols, palette: "default", filters: [],
+    id: uid(), name, labelName, labelType: extra.labelType || "text", ...(extra.period ? { period: extra.period } : {}), cols, palette: "default", filters: [],
     rows: rows.map(r => { const c = {}; cols.forEach((col, i) => { if (col.kind !== "formula" && r[i + 1] !== undefined && r[i + 1] !== "") c[col.id] = extra.raw || decimalComma() ? String(r[i + 1]) : String(r[i + 1]).replace(/^(-?\d+),(\d+)$/, "$1.$2"); }); return { l: r[0] ?? "", c }; }),
     charts: [], activeChart: null, stats: {}
   };
@@ -155,6 +168,9 @@ const TEMPLATES = [
   { key: "ahorro", name: () => t("Hucha de ahorro"), desc: () => t("Apunta lo que llevas ahorrado y mira cuánto te falta."),
     make: () => mk(t("Hucha de ahorro"), t("Fecha"), [[t("Ahorrado (€)")], [t("Notas"), null, "text"]], [],
       [{ name: t("Evolución"), type: "area", series: [0], trend: true }], { sumCol: 0 }, { labelType: "date" }) },
+  { key: "mensual", name: () => t("Registro mensual"), desc: () => t("Un valor cada mes: facturas, ahorro, kilómetros… con aviso el día 1."),
+    make: () => mk(t("Registro mensual"), t("Mes"), [[t("Valor")], [t("Notas"), null, "text"]], [],
+      [{ name: t("Por mes"), type: "bar", series: [0], showMean: true }, { name: t("Evolución"), type: "line", series: [0], zero: false, trend: true }], { sumCol: 0 }, { labelType: "date", period: "month" }) },
   { key: "tension", name: () => t("Tensión arterial"), desc: () => t("Sistólica, diastólica y pulso, con fecha automática."),
     make: () => mk(t("Tensión arterial"), t("Fecha"), [[t("Sistólica")], [t("Diastólica")], [t("Pulso")]], [],
       [{ name: t("Tensión"), type: "line", series: [0, 1], zero: false, ma7: true }, { name: t("Pulso"), type: "line", series: [2], zero: false }], { sumCol: 0 }, { labelType: "date" }) },
@@ -195,7 +211,7 @@ const TEMPLATES = [
 const TPL_GROUPS = [
   [() => t("Seguimiento diario"), ["peso", "diario", "tension", "glucosa", "habitos", "ahorro"]],
   [() => t("Estudios"), ["notas", "encuesta", "relacion"]],
-  [() => t("Dinero y trabajo"), ["gastos", "presupuesto", "ventas", "horas"]],
+  [() => t("Dinero y trabajo"), ["mensual", "gastos", "presupuesto", "ventas", "horas"]],
   [() => t("Otros"), ["deporte", "blank"]]
 ];
 const TPL_IC = {
@@ -213,9 +229,10 @@ const TPL_IC = {
   ventas: '<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
   horas: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   deporte: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
-  blank: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/>'
+  blank: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/>',
+  mensual: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M11 14.2l1.5-1.2v5.5"/>'
 };
-const QUICK_TPL = new Set(["peso", "tension", "glucosa", "habitos", "ahorro", "horas"]);
+const QUICK_TPL = new Set(["peso", "tension", "glucosa", "habitos", "ahorro", "horas", "mensual"]);
 function tplGrid() {
   return TPL_GROUPS.map(([title, keys]) => `<section class="tplgroup"><h4>${esc(title())}</h4><div class="tpls">${keys.map(k => {
     const x = TEMPLATES.find(y => y.key === k);
@@ -230,6 +247,7 @@ const TPL_COLS = {
   tension: [{ unit: "mmHg" }, { unit: "mmHg" }],
   glucosa: [{ unit: "mg/dL" }, { options: () => [t("En ayunas"), t("Después de comer"), t("Antes de dormir")] }],
   horas: [{ unit: "h", agg: "sum" }],
+  mensual: [{ agg: "sum" }],
   habitos: [{ options: () => [t("Sí"), t("No")] }, { options: () => [t("Sí"), t("No")] }],
   diario: [{ unit: "kg" }, { unit: "h", agg: "mean" }],
   deporte: [{ unit: "km", agg: "sum" }, { unit: "min", agg: "sum" }],
@@ -238,7 +256,7 @@ const TPL_COLS = {
 };
 function newFromTemplate(key) {
   const x = TEMPLATES.find(y => y.key === key); if (!x) return;
-  const p = x.make();
+  const p = x.make(); gc("plantilla/" + key);
   (TPL_COLS[key] || []).forEach((o, i) => { const c = p.cols[i]; if (!c) return; Object.entries(o).forEach(([k, v]) => (c[k] = typeof v === "function" ? v() : v)); });
   let n = 2; const base = p.name; while (state.projects.some(q => q.name === p.name)) p.name = `${base} ${n++}`;
   p.updated = Date.now();
@@ -286,7 +304,7 @@ function projectCard(p) {
         const df = last.v - prev.v, good = Number.isFinite(p.goal) && df ? (Math.abs(last.v - p.goal) < Math.abs(prev.v - p.goal) ? "up" : "down") : "";
         dl = `<span class="${good}">${df > 0 ? "▲" : df < 0 ? "▼" : "="}${df ? " " + esc(fmtU(Math.abs(df), c)) : ""}</span> · `;
       }
-      sub = `${dl}${esc(colName2(p, c))} · ${fmtDate(last.l)}`;
+      sub = `${dl}${esc(colName2(p, c))} · ${fmtLbl(p, last.l)}`;
     } else {
       const vs = pts.map(x => x.v), agg = aggOf(c);
       main = `<b>${esc(fmtU(agg === "sum" ? S.sum(vs) : S.mean(vs), c))}</b>`;
@@ -295,7 +313,10 @@ function projectCard(p) {
     }
   } else sub = n ? t("{n} filas", { n }) : t("Vacío");
   const ago = p.updated ? agoShort(p.updated) : "";
-  return `<button class="projcard" data-open="${p.id}"><span class="ptop"><b class="pname">${esc(p.name)}</b>${ago ? `<small>${ago}</small>` : ""}</span>
+  // aviso de registro pendiente: el mes actual aún no tiene valor
+  const due = isMonthly(p) && !p.rows.some(r => ymOf(r.l) === ymOf(todayISO()) && Object.values(r.c).some(v => String(v).trim()));
+  if (due) sub += `<span class="pdue">● ${esc(t("Falta {m}", { m: fmtMonth(monthNow(), true) }))}</span>`;
+  return `<button class="projcard${due ? " due" : ""}" data-open="${p.id}"><span class="ptop"><b class="pname">${esc(p.name)}</b>${ago ? `<small>${ago}</small>` : ""}</span>
     <span class="pmain">${main || "&nbsp;"}</span><span class="pspark">${c ? sparkSVG(pts, isDate, color) : ""}</span><small class="psub">${sub}</small></button>`;
 }
 const colName2 = (p, c) => { const u = unitOf(c), nm = c.name || ""; return u && !nm.includes(u) ? nm : nm.replace(/\s*\([^)]*\)\s*$/, "") || nm; };
@@ -421,7 +442,7 @@ function trendClass(diff, last, c) {
    Deshacer y rehacer
    ========================================================= */
 const HIST = {};
-const snapFields = ["name", "labelName", "labelType", "cols", "rows", "charts", "filters", "palette", "goal", "bodyWeight", "height", "unit"];
+const snapFields = ["name", "labelName", "labelType", "cols", "rows", "charts", "filters", "palette", "goal", "bodyWeight", "height", "unit", "pgoal"];
 const snap = p => JSON.stringify(snapFields.map(k => p[k]));
 const hist = () => cur() ? (HIST[state.current] = HIST[state.current] || { past: [], future: [], last: snap(cur()) }) : { past: [], future: [], last: "" };
 function track() {
@@ -461,7 +482,7 @@ function validId(id, fallbackIdx = 0, onlyNum = true) {
 }
 function labelText(p, i) {
   const l = String(p.rows[i].l ?? "").trim();
-  if (p.labelType === "date") return l ? fmtDate(l, data.multiYear) : `#${i + 1}`;
+  if (p.labelType === "date") return l ? fmtLbl(p, l, data.multiYear) : `#${i + 1}`;
   return l || `#${i + 1}`;
 }
 function data() {
@@ -619,6 +640,21 @@ function confirmSheet(title, text, okLabel, fn) {
   openSheet(`<h3>${esc(title)}</h3><p>${esc(text)}</p><div class="actions"><button class="btn ghost" data-act="close">${t("Cancelar")}</button><button class="btn danger" data-act="ok">${esc(okLabel)}</button></div>`,
     act => { if (act === "ok") { closeSheet(); fn(); } });
 }
+/* Estadísticas anónimas de uso con GoatCounter: solo el nombre de lo que se usa
+   (por ejemplo «plantilla/peso»), nunca datos, nombres ni números. Se apagan en Ajustes. */
+const GC_CODE = "lazyantapps"; // misma cuenta que la web personal: los eventos de la app van con el prefijo «graficalo/»
+function gc(ev) {
+  if (!GC_CODE || settings.stats === false || !navigator.onLine) return;
+  try { const q = new URLSearchParams({ p: "graficalo/" + ev, t: "Gráficalo · " + ev, e: "true", rnd: Math.random().toString(36).slice(2) }); new Image().src = `https://${GC_CODE}.goatcounter.com/count?${q}`; } catch {}
+}
+// una vez al día por dispositivo: que la app se abrió, versión, idioma y si es la web o la app de Play
+function gcDaily() {
+  if (!GC_CODE || settings.stats === false) return;
+  const d = todayISO(); let last = ""; try { last = localStorage.getItem("graficalo.gcday") || ""; } catch {}
+  if (last === d) return; try { localStorage.setItem("graficalo.gcday", d); } catch {}
+  const play = document.referrer.startsWith("android-app://") || (matchMedia("(display-mode: standalone)").matches && /Android/.test(navigator.userAgent));
+  ["abrir", "version/" + APP_VERSION, "idioma/" + LANG, "plataforma/" + (play ? "android" : "web"), "proyectos/" + Math.min(state.projects.length, 10)].forEach(gc);
+}
 function settingsSheet() {
   const seg = (k, opts) => `<div class="seg" role="group">${opts.map(([v, l]) => `<button data-act="${k}:${v}" aria-pressed="${(settings[k] || "auto") === v}">${l}</button>`).join("")}</div>`;
   openSheet(`<h3>${t("Ajustes")}</h3>
@@ -628,6 +664,8 @@ function settingsSheet() {
     <p class="hint">${t("El PIN evita que otros abran la app en tu móvil. No cifra los datos.")}</p>
     <label class="setrow"><span>${t("Modo avanzado")}</span><input type="checkbox" class="switch" id="advChk" ${settings.advanced ? "checked" : ""}></label>
     <p class="hint">${t("Muestra los contrastes de hipótesis, la calculadora de probabilidad, las tablas cruzadas y las columnas con fórmulas.")}</p>
+    ${GC_CODE ? `<label class="setrow"><span>${t("Estadísticas anónimas de uso")}</span><input type="checkbox" class="switch" id="gcChk" ${settings.stats !== false ? "checked" : ""}></label>
+    <p class="hint">${t("Solo cuenta qué funciones se usan (por ejemplo, qué plantillas), para saber qué mejorar. Nunca envía tus datos.")}</p>` : ""}
     <div class="actions"><button class="btn primary" data-act="close">${t("Hecho")}</button></div>`,
   act => {
     if (act === "pin:set") return pinSetSheet();
@@ -636,6 +674,7 @@ function settingsSheet() {
     if (k === "theme") { settings.theme = v; saveSettings(); applyTheme(); renderTable(); refresh(); settingsSheet(); }
   });
   $("#advChk").addEventListener("change", e => { settings.advanced = e.target.checked; saveSettings(); if (cur()) renderStats(); });
+  $("#gcChk")?.addEventListener("change", e => { settings.stats = e.target.checked; saveSettings(); });
   $("#langSel").addEventListener("change", async e => { settings.lang = e.target.value; saveSettings(); await setLang(e.target.value); settingsSheet(); });
 }
 async function setLang(v) {
@@ -663,7 +702,7 @@ function aboutSheet() {
     <p class="hint"><a href="privacidad.html" target="_blank" rel="noopener" style="color:var(--accent)">${t("Política de privacidad")}</a></p>
     <div class="actions"><button class="btn primary" data-act="close">${t("Cerrar")}</button></div>`, () => {});
 }
-const APP_VERSION = "0.8.2";
+const APP_VERSION = "0.9";
 
 /* =========================================================
    Tabla de datos
@@ -1194,17 +1233,19 @@ function renderQuick() {
   const p = cur(), on = p.labelType === "date" && quickCols().length > 0;
   ["#quick", "#quickPanel"].forEach(sel => { const el = $(sel); el.hidden = !on; if (!on) el.innerHTML = ""; });
   if (!on) return;
-  const date = quickDate || todayISO(), isToday = date === todayISO();
-  const ri = p.rows.findIndex(r => r.l === date), row = ri >= 0 ? p.rows[ri] : null;
+  const mon = isMonthly(p), today = mon ? monthNow() : todayISO();
+  const date = quickDate || today, isToday = date === today;
+  const ri = p.rows.findIndex(r => (mon ? ymOf(r.l) === ymOf(date) : r.l === date)), row = ri >= 0 ? p.rows[ri] : null;
   const d = data(), first = quickCols().find(c => c.kind === "num");
   const ph = c => { if (c.kind === "text") return ""; const v = d.vals(c.id); return v.length ? fmt(d.series(c.id).filter(x => x != null).pop()) : ""; };
   const stats = first ? quickStats(first) : "";
   const html = pre => `<div class="qhead"><b>${t("Registro rápido")}</b>
-      <span class="qdate">${isToday ? t("Hoy") + ", " : ""}<input type="date" data-q="date" value="${date}" max="${todayISO()}" aria-label="${t("Fecha")}"></span></div>
+      <span class="qdate">${isToday ? (mon ? t("Este mes") : t("Hoy")) + ", " : ""}${mon ? `<input type="month" data-q="date" value="${ymOf(date)}" max="${ymOf(todayISO())}" aria-label="${t("Mes")}">` : `<input type="date" data-q="date" value="${date}" max="${todayISO()}" aria-label="${t("Fecha")}">`}</span></div>
     <div class="qfields">${quickCols().map(c => { const v = row ? row.c[c.id] ?? "" : "", ops = c.kind === "text" ? quickOptions(c) : null;
       return ops ? `<div class="qchoice"><span>${esc(colName(c))}</span><input type="hidden" data-qc="${c.id}" id="${pre}_${c.id}" value="${esc(v)}"><div class="qchips" role="group">${ops.map(o => `<button type="button" data-chip="${esc(o)}" aria-pressed="${o === String(v).trim()}">${esc(o)}</button>`).join("")}</div></div>`
         : `<label>${esc(colName(c))}<input type="text" ${c.kind === "num" ? 'inputmode="decimal"' : 'class="txt"'} data-qc="${c.id}" id="${pre}_${c.id}" value="${esc(v)}" placeholder="${esc(ph(c))}" enterkeyhint="done" autocomplete="off"></label>`; }).join("")}</div>
-    <div class="qrow"><button class="btn primary" data-q="save">${ICON(row ? IC.edit : IC.plus)}${row ? t("Actualizar") : t("Guardar")}</button>${first ? `<button class="btn" data-q="goal" title="${t("Objetivo y ajustes")}">${ICON('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="0.5"/>')}${Number.isFinite(p.goal) ? fmt(p.goal) : t("Objetivo")}</button>` : ""}</div>
+    <div class="qrow"><button class="btn primary" data-q="save">${ICON(row ? IC.edit : IC.plus)}${row ? t("Actualizar") : t("Guardar")}</button>${first ? `<button class="btn" data-q="goal" title="${t("Objetivo y ajustes")}">${ICON('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="0.5"/>')}${Number.isFinite(p.goal) ? fmt(p.goal) : t("Objetivo")}</button>` : ""}${mon ? `<button class="btn" data-q="remind" title="${t("Recordatorio cada mes")}">${ICON('<path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 003.4 0"/>')}${t("Recordatorio")}</button>` : ""}</div>
+    ${first ? periodGoalHTML(first) : ""}
     ${stats ? `<div class="qstats">${stats}</div>` : ""}`;
   const focused = document.activeElement && document.activeElement.closest(".quick") ? document.activeElement.id : null;
   $("#quick").innerHTML = html("qd"); $("#quickPanel").innerHTML = html("qp");
@@ -1217,17 +1258,21 @@ function quickStats(c) {
   pts.sort((a, b) => a[0] - b[0]);
   const last = pts[pts.length - 1], prev = pts[pts.length - 2], firstP = pts[0];
   const arrow = x => (x ? `<span class="${trendClass(x, last[1], c)}">${x > 0 ? "▲" : "▼"} ${fmtU(Math.abs(x), c)}</span>` : "=");
-  const out = [`<span>${t("Último")}: <b>${fmtU(last[1], c)}</b> (${fmtDate(isoOf(new Date(last[0])))})</span>`];
+  const mon = isMonthly(p), lbl = ts => (mon ? fmtMonth(isoOf(new Date(ts))) : fmtDate(isoOf(new Date(ts))));
+  const out = [`<span>${t("Último")}: <b>${fmtU(last[1], c)}</b> (${lbl(last[0])})</span>`];
   if (prev) out.push(`<span>${arrow(last[1] - prev[1])} ${t("desde el anterior")}</span>`);
-  if (pts.length > 2) out.push(`<span>${arrow(last[1] - firstP[1])} ${t("desde el {d}", { d: fmtDate(isoOf(new Date(firstP[0]))) })}</span>`);
-  const wk = pts.filter(x => x[0] > last[0] - 7 * 864e5).map(x => x[1]);
+  if (pts.length > 2) out.push(`<span>${arrow(last[1] - firstP[1])} ${mon ? t("desde {d}", { d: lbl(firstP[0]) }) : t("desde el {d}", { d: lbl(firstP[0]) })}</span>`);
+  const wk = mon ? [] : pts.filter(x => x[0] > last[0] - 7 * 864e5).map(x => x[1]);
   if (wk.length > 1) out.push(`<span>${t("Media 7 días")}: <b>${fmtU(S.mean(wk), c)}</b></span>`);
   if (Number.isFinite(p.goal)) { const r = last[1] - p.goal; out.push(Math.abs(r) < 1e-9 ? `<span class="up">${t("¡Objetivo conseguido!")}</span>` : `<span>${t("A {x} del objetivo", { x: `<b>${fmtU(Math.abs(r), c)}</b>` })}</span>`); }
   const tr = trendInfo(c.id);
   if (tr) {
-    const wkRate = tr.slope * 7;
-    out.push(`<span>${t("Ritmo")}: <b>${wkRate > 0 ? "+" : wkRate < 0 ? "−" : ""}${fmtU(Math.abs(wkRate), c)}</b> ${t("por semana")}</span>`);
-    if (Number.isFinite(p.goal) && Math.abs(last[1] - p.goal) > 1e-9) out.push(tr.eta ? `<span class="up">${t("A este ritmo, objetivo el {d}", { d: fmtDate(isoOf(new Date(tr.eta)), new Date(tr.eta).getFullYear() !== new Date().getFullYear()) })}</span>` : `<span>${t("A este ritmo no te acercas al objetivo")}</span>`);
+    const wkRate = tr.slope * (mon ? 30.44 : 7);
+    out.push(`<span>${t("Ritmo")}: <b>${wkRate > 0 ? "+" : wkRate < 0 ? "−" : ""}${fmtU(Math.abs(wkRate), c)}</b> ${mon ? t("por mes") : t("por semana")}</span>`);
+    if (Number.isFinite(p.goal) && Math.abs(last[1] - p.goal) > 1e-9) {
+      const etaD = tr.eta ? isoOf(new Date(tr.eta)) : null, yr = tr.eta && new Date(tr.eta).getFullYear() !== new Date().getFullYear();
+      out.push(tr.eta ? `<span class="up">${t("A este ritmo llegas al objetivo en {t} (hacia {d})", { t: `<b>${durText((tr.eta - tsOf(todayISO())) / 864e5)}</b>`, d: mon ? fmtMonth(etaD, true) : fmtDate(etaD, yr) })}</span>` : `<span>${t("A este ritmo no te acercas al objetivo")}</span>`);
+    }
   }
   if (p.bodyWeight && p.height > 0 && c === p.cols.find(x => x.kind === "num")) {
     const kg = p.unit === "lb" ? last[1] / 2.20462 : last[1], bmi = kg / (p.height / 100) ** 2;
@@ -1236,20 +1281,54 @@ function quickStats(c) {
   }
   return out.join("");
 }
+// barra de progreso del límite o meta del periodo actual (semana, mes o año)
+function periodGoalHTML(c) {
+  const p = cur(), g = p.pgoal; if (!g || !Number.isFinite(g.v) || !g.v) return "";
+  const now = new Date(); let start;
+  if (g.per === "week") { start = new Date(now.getFullYear(), now.getMonth(), now.getDate()); start.setDate(start.getDate() - ((start.getDay() + 6) % 7)); }
+  else if (g.per === "year") start = new Date(now.getFullYear(), 0, 1);
+  else start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const d = data(), vals = []; d.series(c.id).forEach((v, k) => { if (v != null && d.ts && d.ts[k] >= start.getTime() && d.ts[k] <= now.getTime()) vals.push(v); });
+  const agg = aggOf(c), cur0 = !vals.length ? 0 : agg === "sum" ? S.sum(vals) : agg === "last" ? vals[vals.length - 1] : S.mean(vals);
+  const pctv = cur0 / g.v, max = g.dir !== "min", over = max && cur0 > g.v, done = !max && cur0 >= g.v;
+  const perL = g.per === "week" ? t("Esta semana") : g.per === "year" ? t("Este año") : t("Este mes");
+  const rest = Math.abs(g.v - cur0), msg = over ? t("Te has pasado {x}", { x: fmtU(rest, c) }) : done ? t("¡Meta conseguida!") : max ? t("Te quedan {x}", { x: fmtU(rest, c) }) : t("Te faltan {x}", { x: fmtU(rest, c) });
+  return `<div class="pgoal ${over ? "over" : done ? "done" : ""}"><div class="pgtop"><span>${perL}${agg === "mean" ? " (" + t("Media").toLowerCase() + ")" : ""}: <b>${fmtU(cur0, c)}</b> ${max ? t("de {x} como máximo", { x: fmtU(g.v, c) }) : t("de {x} como mínimo", { x: fmtU(g.v, c) })}</span><span>${Math.round(pctv * 100)} %</span></div>
+    <div class="pgbar"><i style="width:${Math.max(0, Math.min(100, pctv * 100)).toFixed(1)}%"></i></div><small>${msg}</small></div>`;
+}
+// recordatorio en el calendario del móvil: el día 1 de cada mes a las 10:00
+function remindSheet() {
+  const p = cur(), now = new Date(), next = new Date(now.getFullYear(), now.getMonth() + 1, 1, 10, 0), end = new Date(next.getTime() + 15 * 60e3);
+  const pad = n => String(n).padStart(2, "0"), st = d => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+  const title = t("Apuntar «{n}» en Gráficalo", { n: p.name }), link = typeof appBase === "function" ? appBase() : location.href.split("#")[0];
+  const details = t("Abre Gráficalo y apunta el valor de este mes.") + "\n" + link, rule = "RRULE:FREQ=MONTHLY;BYMONTHDAY=1";
+  let tz = ""; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch {}
+  const q = new URLSearchParams({ action: "TEMPLATE", text: title, details, dates: st(next) + "/" + st(end), recur: rule }); if (tz) q.set("ctz", tz);
+  const gUrl = "https://calendar.google.com/calendar/render?" + q.toString();
+  const ie = s => String(s).replace(/\\/g, "\\\\").replace(/[;,]/g, m => "\\" + m).replace(/\n/g, "\\n");
+  const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Graficalo//ES", "BEGIN:VEVENT", `UID:${p.id}-${Date.now()}@graficalo`, "DTSTAMP:" + new Date().toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z",
+    "DTSTART:" + st(next), "DTEND:" + st(end), rule, "SUMMARY:" + ie(title), "DESCRIPTION:" + ie(details), "BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:" + ie(title), "TRIGGER:PT0M", "END:VALARM", "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+  openSheet(`<h3>${t("Recordatorio cada mes")}</h3>
+    <p>${t("Añade a tu calendario un aviso el día 1 de cada mes a las 10:00. Así te llega la notificación aunque no abras la app.")}</p>
+    <div class="actions" style="flex-direction:column;align-items:stretch"><a class="btn primary" href="${esc(gUrl)}" target="_blank" rel="noopener" data-act="g">${t("Añadir a Google Calendar")}</a><button class="btn" data-act="ics">${t("Otro calendario (archivo .ics)")}</button></div>
+    <p class="hint">${t("La hora o el día los puedes cambiar desde tu calendario, y quitarlo cuando quieras. Además, mientras falte el valor del mes, el proyecto lo indicará en tu lista.")}</p>`,
+  act => { if (act === "ics") downloadBlob(new Blob([ics], { type: "text/calendar" }), safeName(p.name) + ".ics"); gc("recordatorio/" + act); });
+}
 function quickSave(box) {
-  const p = cur(), date = box.querySelector("[data-q=date]").value || todayISO();
+  const p = cur(), mon = isMonthly(p); let date = box.querySelector("[data-q=date]").value || (mon ? monthNow() : todayISO());
+  if (date.length === 7) date += "-01";
   const vals = {}; let any = false;
   box.querySelectorAll("[data-qc]").forEach(i => { const v = i.value.trim(); if (v !== "") { vals[i.dataset.qc] = v; any = true; } });
   if (!any) { toast(t("Escribe al menos un valor")); box.querySelector("input[data-qc]:not([type=hidden])")?.focus(); return; }
   const bad = quickCols().find(c => c.kind === "num" && vals[c.id] !== undefined && !Number.isFinite(S.parseNum(vals[c.id])));
   if (bad) { toast(t("«{v}» no es un número", { v: vals[bad.id] })); return; }
-  let r = p.rows.find(x => x.l === date);
+  let r = p.rows.find(x => (mon ? ymOf(x.l) === ymOf(date) : x.l === date));
   const existed = !!r;
   if (!r) { r = { l: date, c: {} }; p.rows = p.rows.filter(x => String(x.l ?? "").trim() || Object.keys(x.c).length); p.rows.push(r); }
   Object.assign(r.c, vals);
   p.rows.sort((a, b) => (!a.l) - (!b.l) || String(a.l).localeCompare(String(b.l)));
   quickDate = null; dirty(); persist(); renderTable(); refresh();
-  const dy = fmtDate(date, date.slice(0, 4) !== String(new Date().getFullYear()));
+  const dy = mon ? fmtMonth(date) : fmtDate(date, date.slice(0, 4) !== String(new Date().getFullYear()));
   toast(existed ? t("Actualizado · {d}", { d: dy }) : t("Guardado · {d}", { d: dy }), t("Deshacer"), undo);
   document.activeElement?.blur?.();
 }
@@ -1282,6 +1361,11 @@ function trackSheet() {
       <div class="field"><span class="label">${t("Unidad")}</span><div class="seg" role="group" id="unitSeg" data-u="${p.unit || "kg"}"><button data-act="u:kg" aria-pressed="${(p.unit || "kg") === "kg"}">kg</button><button data-act="u:lb" aria-pressed="${p.unit === "lb"}">lb</button></div></div>
     </div>
     <p class="hint" id="bwHint" ${p.bodyWeight ? "" : "hidden"}>${t("El IMC es orientativo: no tiene en cuenta la masa muscular ni la edad.")}</p>
+    <div class="field"><span class="label">${t("Límite o meta por periodo")}</span>
+      <div class="row2"><select id="pgPer" aria-label="${t("Periodo")}">${[["", t("Ninguno")], ["week", t("Por semana")], ["month", t("Por mes")], ["year", t("Por año")]].map(([v, l]) => `<option value="${v}" ${(p.pgoal?.per || "") === v ? "selected" : ""}>${l}</option>`).join("")}</select>
+      <select id="pgDir" aria-label="${t("Tipo")}"><option value="max" ${p.pgoal?.dir !== "min" ? "selected" : ""}>${t("Como máximo")}</option><option value="min" ${p.pgoal?.dir === "min" ? "selected" : ""}>${t("Como mínimo")}</option></select></div>
+      <input type="text" inputmode="decimal" id="pgIn" value="${p.pgoal ? esc(String(p.pgoal.v).replace(".", DEC())) : ""}" placeholder="${t("Ej.: 300")}" style="margin-top:8px">
+      <p class="hint">${t("Por ejemplo, gastar como máximo 300 € al mes. Verás una barra con lo que llevas en la semana, el mes o el año actual.")}</p></div>
     <div class="actions"><button class="btn ghost" data-act="rm" ${Number.isFinite(p.goal) ? "" : "disabled"}>${t("Quitar objetivo")}</button><button class="btn primary" data-act="ok">${t("Guardar")}</button></div>`,
   act => {
     if (act.startsWith("u:")) { $$("#unitSeg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.act === act)); $("#unitSeg").dataset.u = act.slice(2); return; }
@@ -1300,6 +1384,9 @@ function trackSheet() {
       p.unit = newU;
     }
     if (Number.isFinite(goal)) { p.goal = goal; setLines(goal); }
+    const per = $("#pgPer").value, pv = S.parseNum($("#pgIn").value);
+    if (per && $("#pgIn").value.trim() && !Number.isFinite(pv)) { toast(t("Escribe un número")); return; }
+    if (per && Number.isFinite(pv)) p.pgoal = { per, dir: $("#pgDir").value, v: pv }; else delete p.pgoal;
     dirty(); persist(); renderTable(); refresh(); closeSheet();
   });
   $("#bwChk").addEventListener("change", e => { $("#bwBox").hidden = !e.target.checked; $("#bwHint").hidden = !e.target.checked; });
@@ -1318,9 +1405,9 @@ function convertUnit(p, col, to) {
     const chip = e.target.closest("[data-chip]");
     if (chip) { const wrap = chip.closest(".qchoice"), inp = wrap.querySelector("[data-qc]"), on = chip.getAttribute("aria-pressed") !== "true";
       wrap.querySelectorAll("[data-chip]").forEach(x => x.setAttribute("aria-pressed", "false")); chip.setAttribute("aria-pressed", String(on)); inp.value = on ? chip.dataset.chip : ""; return; }
-    const b = e.target.closest("[data-q]"); if (!b || b.tagName === "INPUT") return; if (b.dataset.q === "save") quickSave(box); if (b.dataset.q === "goal") trackSheet(); });
+    const b = e.target.closest("[data-q]"); if (!b || b.tagName === "INPUT") return; if (b.dataset.q === "save") quickSave(box); if (b.dataset.q === "goal") trackSheet(); if (b.dataset.q === "remind") remindSheet(); });
   box.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.matches("[data-qc]")) { e.preventDefault(); quickSave(box); } });
-  box.addEventListener("change", e => { if (e.target.dataset.q === "date") { quickDate = e.target.value && e.target.value !== todayISO() ? e.target.value : null; renderQuick(); } });
+  box.addEventListener("change", e => { if (e.target.dataset.q === "date") { let v = e.target.value; if (v && v.length === 7) v += "-01"; const today = isMonthly(cur()) ? monthNow() : todayISO(); quickDate = v && v !== today ? v : null; renderQuick(); } });
 });
 function openQuickFromShortcut() {
   const dated = state.projects.filter(p => p.labelType === "date" && p.cols.length).sort((a, b) => (b.updated || 0) - (a.updated || 0));

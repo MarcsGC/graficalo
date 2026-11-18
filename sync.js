@@ -234,7 +234,7 @@ async function startupSync() {
   if (r?.ok) {
     if (!settings.sync) settings.sync = {};
     const first = !settings.sync.email;
-    settings.sync.on = true; settings.sync.ok = true; delete settings.sync.pending; settings.sync.silentFail = 0; saveSettings();
+    gc("drive"); settings.sync.on = true; settings.sync.ok = true; delete settings.sync.pending; settings.sync.silentFail = 0; saveSettings();
     if (first) { settings.sync.email = await gdEmail(); saveSettings(); }
     const n0 = state.projects.length;
     await syncNow();
